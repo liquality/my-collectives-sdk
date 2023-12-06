@@ -1,0 +1,16 @@
+{
+  "name": "MyCollectives",
+  "version": "1.0.0",
+  "description": "SDK to interact with the MyCollectives contracts",
+  "main": "app.js",
+  "repository": "https://github.com/liquality/collectives-sdk.git",
+  "author": "Liquality Team",
+  "license": "MIT",
+  "private": null,
+  "dependencies": {
+    "@biconomy/core-types": "^3.1.1",
+    "bignumber.js": "^9.1.2",
+    "dotenv": "^16.3.1",
+    "ethers": "^6.9.0"
+  }
+}
