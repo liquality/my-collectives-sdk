@@ -8,8 +8,8 @@ import { Transaction } from "@biconomy/core-types"
 import {buildUserOperation, sendWithPimlico} from "../libs/userOp"
 
 // Create the collective module of the sdk
-export class Collective {
-    public async createCollective(caller: ethers.BrowserProvider, poolParam: createPoolsParam) {
+export class Collectives {
+    public static async createCollective(caller: ethers.BrowserProvider, poolParam: createPoolsParam) {
         const signer = await caller.getSigner();
     
         // Get collective factory
@@ -41,16 +41,16 @@ export class Collective {
         const nonceKey = ethers.toBeHex(ethers.randomBytes(24).toString());
     
         const userOperation = await buildUserOperation(signer, cWallet, nonceKey, collectiveInitCode, userOpTx)
-        const tx = await sendWithPimlico(userOperation)
+        const tx = await sendWithPimlico(userOperation!)
     
         return {collectiveAddress: cAddress, collectiveWalletAddress: cWallet, nonce:nonceKey, tx:tx, };
     
     }
-    private async getCreatePoolsCallData(poolParam: createPoolsParam) {
+    private static async getCreatePoolsCallData(poolParam: createPoolsParam) {
         const createPoolCallData = Collective__factory.createInterface().encodeFunctionData("createPools", [poolParam.tokenContracts, poolParam.honeyPots]);
         return createPoolCallData;
     }
-    private async getCFactory() {
+    private static async getCFactory() {
         const cFactory = CollectiveFactory__factory.connect(COLLECTIVE_FACTORY_ADDRESS)
         return cFactory;
     }

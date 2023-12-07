@@ -1,12 +1,25 @@
 {
     "compilerOptions": {
-      "module": "NodeNext",
+      "module": "ESNext",
+      "target": "ES5",
       "noImplicitAny": true,
       "removeComments": true,
       "preserveConstEnums": true,
       "sourceMap": true,
-      "outDir": "build",
-      "resolveJsonModule": true
+      "outDir": "dist",
+      "rootDir": "./src",
+      "moduleResolution": "node",
+      "esModuleInterop": true,
+      "allowSyntheticDefaultImports": true,
+      "allowJs": true,
+      "importHelpers": true,
+      "forceConsistentCasingInFileNames": true,
+      "noFallthroughCasesInSwitch": true,
+      "noUnusedLocals": false,
+      "noUnusedParameters": false,
+      "noImplicitThis": true,
+      "strictNullChecks": true,
+      "skipLibCheck": true
     },
     "include": ["src/**/*", "tsconfig.json"],
     "exclude": ["**/*.spec.ts"]

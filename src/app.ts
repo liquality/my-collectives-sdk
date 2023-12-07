@@ -2,7 +2,7 @@ import { AppConfig } from './types/types';
 import {Config} from "./config"
 
 // Functions to export
-export { Collective } from './collectives/index';
+export { Collectives } from './collectives/index';
 
 export function setConfig(userConfig: AppConfig) {
     let defaultConfig: AppConfig = {

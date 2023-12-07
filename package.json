@@ -1,16 +1,31 @@
 {
-  "name": "MyCollectives",
+  "name": "@koderholic/my-collectives",
   "version": "1.0.0",
   "description": "SDK to interact with the MyCollectives contracts",
-  "main": "app.js",
-  "repository": "https://github.com/liquality/collectives-sdk.git",
+  "repository": "https://github.com/liquality/my-collectives.git",
   "author": "Liquality Team",
   "license": "MIT",
   "private": null,
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com/",
+    "access": "public"
+  },
+  "main": "./dist/src/app.js",
+  "types": "./dist/src/app.d.ts",
+  "files": [
+    "dist/**"
+  ],
+  "scripts": {
+    "clean": "rimraf ./dist",
+    "build": "npm run clean && tsc",
+    "watch": "tsc -w",
+    "lint": "TIMING=1 eslint \"**/*.ts*\""
+  },
   "dependencies": {
     "@biconomy/core-types": "^3.1.1",
     "bignumber.js": "^9.1.2",
     "dotenv": "^16.3.1",
-    "ethers": "^6.9.0"
+    "ethers": "^6.9.0",
+    "rimraf": "^5.0.5"
   }
 }

@@ -4,56 +4,54 @@ import { ethers } from 'ethers';
 import { Config } from '../config';
 import { IUserOperation } from '../types/types';
 import {CWallet__factory} from "../types/typechain-types/factories/contracts/core/CWallet__factory"
-import {ENTRYPOINT_ABI} from "./constants"
+import {ENTRYPOINT_ADDRESS, ENTRYPOINT_ABI} from "./constants"
 import { BigNumber} from 'bignumber.js';
+import { AddressLike, BigNumberish } from 'ethers/lib.esm';
 
 
 export async function buildUserOperation(signer: ethers.JsonRpcSigner, smartAccount: string, nonceKey: string, collectiveInitCode: BytesLike, transactions: Transaction[]) {
   try {
-  // Get calldata
-  const executeCallData = await getExecuteCallData(transactions)
-  const nonce = await getNonce(smartAccount, nonceKey)
+    // Get calldata
+    const executeCallData = await getExecuteCallData(transactions)
+    const nonce = await getNonce(smartAccount, nonceKey, signer)
 
-  // Get default userOperation
-  const userOperation: IUserOperation = await InitializeUserOperation(smartAccount, nonce, executeCallData)
-  // Add initCode if it exist
-  if (collectiveInitCode) {
-    userOperation.initCode = collectiveInitCode
+    // Get default userOperation
+    let userOperation: IUserOperation = await InitializeUserOperation(smartAccount, nonce, executeCallData)
+    // Add initCode if it exist
+    if (collectiveInitCode) {
+      userOperation.initCode = collectiveInitCode
+    }
+
+    let estimationOps = {...userOperation}
+    const estimationSig = await signUserOps(signer, encodeUserOps(estimationOps))
+    estimationOps.signature = estimationSig
+    
+    // Get gas estimation for user oeperation
+    const estimations = await estimateWithPimlico(estimationOps)
+    const feeData = await getFeeData()
+
+    userOperation.callGasLimit = new BigNumber(estimations.callGasLimit).toString(16)
+    userOperation.preVerificationGas = new BigNumber(estimations.preVerificationGas).toString(16)
+    userOperation.verificationGasLimit = new BigNumber(estimations.verificationGasLimit).toString(16)
+    userOperation.maxFeePerGas = new BigNumber(feeData.maxFeePerGas!.toString()).toString(16)
+    userOperation.maxPriorityFeePerGas = new BigNumber(feeData.maxPriorityFeePerGas!.toString()).toString(16)
+
+    let encoded = encodeUserOps(userOperation) 
+    const userOpsHash = ethers.keccak256(encoded)
+    const signedUserOps = await signUserOps(signer, userOpsHash)
+    userOperation.signature = signedUserOps
+
+    return userOperation
+
+  } catch (error) {
+    console.log("error buildUserOperation >>>> ", error)
   }
-
-  let estimationOps = {...userOperation}
-  const estimationSig = await signUserOps(signer, encodeUserOps(estimationOps))
-  estimationOps.signature = estimationSig
-  
-  // Get gas estimation for user oeperation
-  const estimations = await estimateWithPimlico(estimationOps)
-  const feeData = await getFeeData()
-
-  userOperation.callGasLimit = new BigNumber(estimations.callGasLimit).toString(16)
-  userOperation.preVerificationGas = new BigNumber(estimations.preVerificationGas).toString(16)
-  userOperation.verificationGasLimit = new BigNumber(estimations.verificationGasLimit).toString(16)
-  userOperation.maxFeePerGas = new BigNumber(feeData.maxFeePerGas.toString()).toString(16)
-  userOperation.maxPriorityFeePerGas = new BigNumber(feeData.maxPriorityFeePerGas.toString()).toString(16)
-
-  let encoded = encodeUserOps(userOperation) 
-
-  const userOpsHash = ethers.keccak256(encoded)
-
-  const signedUserOps = await signUserOps(signer, userOpsHash)
-
-  userOperation.signature = signedUserOps
-
-  return userOperation
-
-} catch (error) {
-  console.log("error buildUserOperation >>>> ", error)
-}
 }
 
 export async function estimateWithPimlico(userOperation: IUserOperation) {
 
   const pimlicoEndpoint = `https://api.pimlico.io/v1/mumbai/rpc?apikey=${process.env.PIMLICO_API_KEY}`
-  const pimlicoProvider = new providers.StaticJsonRpcProvider(pimlicoEndpoint)
+  const pimlicoProvider = new ethers.JsonRpcProvider(pimlicoEndpoint)
 
   const estimationResult = await pimlicoProvider.send("eth_estimateUserOperationGas", [userOperation, process.env.ENTRYPOINT])
   console.log(`UserOperation estimated. Result: ${estimationResult}`)
@@ -82,8 +80,8 @@ export async function sendWithPimlico(userOperation: IUserOperation) {
 }
 
 // Get nonce
-async function getNonce(smartAccount: string , nonceKey: string) {
-  const entryPoint = new ethers.Contract(process.env.ENTRYPOINT, ENTRYPOINT_ABI, Config.provider)
+async function getNonce(smartAccount: string , nonceKey: string, signer: ethers.JsonRpcSigner) {
+  const entryPoint = new ethers.Contract(ENTRYPOINT_ADDRESS, ENTRYPOINT_ABI, signer)
   const nonce = await entryPoint.getNonce(smartAccount, nonceKey)
   return nonce
 }
@@ -92,18 +90,18 @@ async function getExecuteCallData(transactions: Transaction[]) {
   let executeCallData: BytesLike
   if (transactions.length == 1) {
     executeCallData = CWallet__factory.createInterface().encodeFunctionData("execute", 
-    [transactions[0].to, transactions[0].value, transactions[0].data ])
+    [transactions[0].to as AddressLike, transactions[0].value as BigNumberish, transactions[0].data as BytesLike ])
   } else {
-    let dest:string[]
-    let value:BigNumber[]
-    let data:BytesLike[]
+    let dests:AddressLike[] = []
+    let values:BigNumberish[] = []
+    let datas:BytesLike[] = []
     transactions.forEach((tx) => {
-      dest.push(tx.to)
-      value.push(new BigNumber(tx.value.toString()))
-      data.push(tx.data)
+      dests.push(tx.to)
+      values.push(tx.value as BigNumberish)
+      datas.push(tx.data!)
     })
     executeCallData = CWallet__factory.createInterface().encodeFunctionData("executeBatch", 
-    [dest, value, data ])
+    [dests, values, datas ])
   }
   return executeCallData;
 }
@@ -148,20 +146,20 @@ function encodeUserOps(userOperation: IUserOperation) {
     "bytes32",
   ], [
     userOperation.sender,
-    new BigNumber(nonce).toString(16),
+    userOperation.nonce,
     ethers.keccak256(userOperation.initCode),
     ethers.keccak256(userOperation.callData),
-    new BigNumber(userOperation.callGasLimit).toString(16),
-    new BigNumber(userOperation.verificationGasLimit).toString(16),
-    new BigNumber(userOperation.preVerificationGas).toString(16),
-    new BigNumber(userOperation.maxFeePerGas).toString(16),
-    new BigNumber(userOperation.maxPriorityFeePerGas).toString(16),
+    userOperation.callGasLimit,
+    userOperation.verificationGasLimit,
+    userOperation.preVerificationGas,
+    userOperation.maxFeePerGas,
+    userOperation.maxPriorityFeePerGas,
     ethers.keccak256(userOperation.paymasterAndData)
   ])
   return encoded
 }
 
-async function getFeeData() {
+async function getFeeData(): Promise<ethers.FeeData> {
   const feeData = await Config.PROVIDER.getFeeData()
   return feeData
 }
