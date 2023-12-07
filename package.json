@@ -1,6 +1,6 @@
 {
   "name": "@koderholic/my-collectives",
-  "version": "1.0.1",
+  "version": "1.1.0",
   "description": "SDK to interact with the MyCollectives contracts",
   "repository": "https://github.com/liquality/my-collectives.git",
   "author": "Liquality Team",
@@ -20,7 +20,7 @@
     "build": "yarn clean && tsc",
     "watch": "tsc -w",
     "lint": "TIMING=1 eslint \"**/*.ts*\"",
-    "publish" : "yarn build && npm publish"
+    "publish": "yarn build && npm publish"
   },
   "dependencies": {
     "@biconomy/core-types": "^3.1.1",
