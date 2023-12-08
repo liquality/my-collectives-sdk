@@ -3,7 +3,7 @@ import {Collective__factory} from "../types/typechain-types/factories/contracts/
 import {COLLECTIVE_FACTORY_ADDRESS} from "../libs/constants"
 import {createPoolsParam} from "../types/types"
 import { ethers } from "ethers";
-import {Config} from "../config"
+import {AppConfig} from "../config"
 import { Transaction } from "@biconomy/core-types"
 import {buildUserOperation, sendWithPimlico} from "../libs/userOp"
 
@@ -15,7 +15,7 @@ export class Collectives {
         // Get collective factory
         const cFactory = await this.getCFactory();
         const initiator = await signer.getAddress();
-        const operator = ethers.Wallet.fromPhrase(Config.OPERATOR_MNEMONIC).address;
+        const operator = ethers.Wallet.fromPhrase(AppConfig.OPERATOR_MNEMONIC).address;
     
         // create collective params
         const salt = ethers.randomBytes(32);

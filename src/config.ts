@@ -2,7 +2,7 @@ import { ethers } from "ethers";
 
 
 // Configuration
-export class Config  {
+export class AppConfig  {
   public static OPERATOR_MNEMONIC: string
   public static RPC_URL: string
   public static PIMLICO_API_KEY: string

@@ -1,7 +1,7 @@
 import {BytesLike} from 'ethers'
 import { ChainId, Transaction } from "@biconomy/core-types"
 import { ethers } from 'ethers';
-import { Config } from '../config';
+import { AppConfig } from '../config';
 import { IUserOperation } from '../types/types';
 import {CWallet__factory} from "../types/typechain-types/factories/contracts/core/CWallet__factory"
 import {ENTRYPOINT_ADDRESS, ENTRYPOINT_ABI} from "./constants"
@@ -160,6 +160,6 @@ function encodeUserOps(userOperation: IUserOperation) {
 }
 
 async function getFeeData(): Promise<ethers.FeeData> {
-  const feeData = await Config.PROVIDER.getFeeData()
+  const feeData = await AppConfig.PROVIDER.getFeeData()
   return feeData
 }

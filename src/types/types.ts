@@ -19,7 +19,7 @@ export type IUserOperation = {
     honeyPots: string[];
   }
 
-  export type AppConfig = {
+  export type Config = {
     OPERATOR_MNEMONIC: string;
     RPC_URL: string;
     PIMLICO_API_KEY: string;
