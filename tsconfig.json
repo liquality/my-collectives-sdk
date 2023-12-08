@@ -19,7 +19,8 @@
       "noUnusedParameters": false,
       "noImplicitThis": true,
       "strictNullChecks": true,
-      "skipLibCheck": true
+      "skipLibCheck": true,
+      "declaration": true
     },
     "include": ["src/**/*", "tsconfig.json"],
     "exclude": ["**/*.spec.ts"]
