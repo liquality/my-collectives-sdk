@@ -1,6 +1,6 @@
 {
   "name": "@koderholic/my-collectives",
-  "version": "1.2.3",
+  "version": "1.2.623",
   "description": "SDK to interact with the MyCollectives contracts",
   "repository": "https://github.com/liquality/my-collectives.git",
   "author": "Liquality Team",
@@ -23,8 +23,11 @@
     "publish": "yarn build && npm publish"
   },
   "dependencies": {
+    "@biconomy/bundler": "^3.1.1",
     "@biconomy/core-types": "^3.1.1",
+    "@biconomy/paymaster": "^3.1.1",
     "bignumber.js": "^9.1.2",
+    "crypto": "^1.0.1",
     "dotenv": "^16.3.1",
     "ethers": "^6.9.0",
     "rimraf": "^5.0.5"
