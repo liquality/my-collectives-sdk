@@ -6,7 +6,7 @@ import { AppConfig } from '../config';
 import { IUserOperation } from '../types/types';
 import {CWallet__factory} from "../types/typechain-types/factories/contracts/core/CWallet__factory"
 import {ENTRYPOINT_ADDRESS, ENTRYPOINT_ABI, USER_OPERATIONS_DEFAULT_SIGNATURE} from "./constants"
-import { BigNumber} from 'bignumber.js';
+import * as ethers5 from 'ethers5';
 import { AddressLike, BigNumberish } from 'ethers/lib.esm';
 import { IBundler, Bundler } from '@biconomy/bundler'
 
@@ -18,7 +18,7 @@ const bundler: IBundler = new Bundler({
 })
 
 
-export async function buildUserOperation(signer: ethers.JsonRpcSigner, smartAccount: string, nonceKey: bigint, collectiveInitCode: BytesLike, transactions: Transaction[]) {
+export async function buildUserOperation(signer: ethers5.Signer, smartAccount: string, nonceKey: bigint, collectiveInitCode: BytesLike, transactions: Transaction[]) : Promise<IUserOperation>{
   try {
     // Get calldata
     const executeCallData = await getExecuteCallData(transactions)
@@ -38,10 +38,12 @@ export async function buildUserOperation(signer: ethers.JsonRpcSigner, smartAcco
     let estimationOps = {...userOperation}
     estimationOps.signature = USER_OPERATIONS_DEFAULT_SIGNATURE
 
+    console.log("fee >> ", ((BigInt(userOperation.maxFeePerGas) * BigInt(userOperation.callGasLimit)) + (BigInt(userOperation.maxPriorityFeePerGas) * BigInt(userOperation.preVerificationGas)) + (BigInt(userOperation.verificationGasLimit) * BigInt(userOperation.maxFeePerGas))).toString())
+   
     let estimations = await estimateWithBiconomy(estimationOps)
-    userOperation.callGasLimit = estimations.callGasLimit.toString()
-    userOperation.preVerificationGas = estimations.preVerificationGas.toString()
-    userOperation.verificationGasLimit = estimations.verificationGasLimit.toString()
+    userOperation.callGasLimit = estimations.callGasLimit.toString()//44401//
+    userOperation.preVerificationGas = estimations.preVerificationGas.toString()//89808//
+    userOperation.verificationGasLimit = estimations.verificationGasLimit.toString() //681264 //
     
 
     // Get gas estimation for user oeperation
@@ -65,18 +67,17 @@ export async function buildUserOperation(signer: ethers.JsonRpcSigner, smartAcco
     console.log("userOperation >>>> ", userOperation)
 
     let encoded = encodeUserOps(userOperation) 
-    const userOpsHash = ethers.keccak256(encoded)
+    const userOpsHash = ethers5.utils.keccak256(encoded)
     const signedUserOps = await signUserOps(signer, userOpsHash)
-    console.log("actual signer >>>> ", signer.address)
+    console.log("actual signer >>>> ", await signer.getAddress())
     userOperation.signature = signedUserOps
 
-    //verify signature
-    console.log("signer >>>> ", ethers.verifyMessage(userOpsHash, signedUserOps))
 
     return userOperation
 
   } catch (error) {
     console.log("error buildUserOperation >>>> ", error)
+    throw error
   }
 }
 
@@ -220,7 +221,7 @@ export async function sendWithBiconomy(userOperation: IUserOperation) {
           userOperation,
           ENTRYPOINT_ADDRESS,
           {
-            "simulation_type": "validation_and_execution"
+            "simulation_type": "validation"
           }
         ]
       }),
@@ -261,7 +262,7 @@ async function getExecuteCallData(transactions: Transaction[]) {
     let executeCallData: BytesLike
     if (transactions.length == 1) {
       executeCallData = CWallet__factory.createInterface().encodeFunctionData("execute", 
-      [transactions[0].to as AddressLike, transactions[0].value as BigNumberish, transactions[0].data as BytesLike ])
+      [transactions[0].to, transactions[0].value as BigNumberish, transactions[0].data as BytesLike ])
     } else {
       let dests:AddressLike[] = []
       let values:BigNumberish[] = []
@@ -300,11 +301,16 @@ async function InitializeUserOperation(smartAccount: string, nonce: string, exec
   return userOperation
 }
 
-async function signUserOps(signer: ethers.JsonRpcSigner, userOpsHash: string) {
+async function signUserOps(signer: ethers5.Signer, userOpsHash: string) {
   try {
-    const unsignedUserOpsEncoded = ethers.AbiCoder.defaultAbiCoder().encode(["bytes32", "address", "uint256"], [userOpsHash, ENTRYPOINT_ADDRESS, (await AppConfig.PROVIDER.getNetwork()).chainId ])
-    const unsignedUserOps = ethers.keccak256(unsignedUserOpsEncoded)
-    const signedUserOps = await signer.signMessage(ethers.toUtf8Bytes(unsignedUserOps))
+    const unsignedUserOpsEncoded = ethers5.utils.defaultAbiCoder.encode(["bytes32", "address", "uint256"], [userOpsHash, ENTRYPOINT_ADDRESS, (await AppConfig.PROVIDER.getNetwork()).chainId ])
+    const unsignedUserOps = ethers5.utils.keccak256(unsignedUserOpsEncoded)
+    const signedUserOps = await signer.signMessage(ethers5.utils.arrayify(unsignedUserOps))
+
+    //verify signature
+    console.log("signer >>>> ", ethers5.utils.verifyMessage(unsignedUserOps, signedUserOps))
+    console.log("unsignedUserOps >>>> ", unsignedUserOps)
+
     return signedUserOps
   } catch (error) {
     console.log("signUserOps error >>>> ", error)
@@ -316,7 +322,7 @@ async function signUserOps(signer: ethers.JsonRpcSigner, userOpsHash: string) {
 function encodeUserOps(userOperation: IUserOperation) {
   try {
     
-    const encoded = ethers.AbiCoder.defaultAbiCoder().encode([
+    const encoded = ethers5.utils.defaultAbiCoder.encode([
       "address",
       "uint256",
       "bytes32",
@@ -330,14 +336,14 @@ function encodeUserOps(userOperation: IUserOperation) {
     ], [
       userOperation.sender,
       userOperation.nonce,
-      ethers.keccak256(userOperation.initCode),
-      ethers.keccak256(userOperation.callData),
+      ethers5.utils.keccak256(userOperation.initCode),
+      ethers5.utils.keccak256(userOperation.callData),
       userOperation.callGasLimit,
       userOperation.verificationGasLimit,
       userOperation.preVerificationGas,
       userOperation.maxFeePerGas,
       userOperation.maxPriorityFeePerGas,
-      ethers.keccak256(userOperation.paymasterAndData)
+      ethers5.utils.keccak256(userOperation.paymasterAndData)
     ])
     return encoded
   } catch (error) {

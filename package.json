@@ -20,7 +20,8 @@
     "build": "yarn clean && tsc",
     "watch": "tsc -w",
     "lint": "TIMING=1 eslint \"**/*.ts*\"",
-    "publish": "yarn build && npm publish"
+    "publish": "yarn build && npm publish",
+    "link" : "yarn build && npm link"
   },
   "dependencies": {
     "@biconomy/bundler": "^3.1.1",
@@ -30,6 +31,7 @@
     "crypto": "^1.0.1",
     "dotenv": "^16.3.1",
     "ethers": "^6.9.0",
+    "ethers5": "npm:ethers@5",
     "rimraf": "^5.0.5"
   }
 }

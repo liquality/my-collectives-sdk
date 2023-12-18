@@ -46,3 +46,14 @@ export type IUserOperation = {
     maxFeePerGas: string;
     maxPriorityFeePerGas: string;
   }
+
+  export type JoinCollectiveParam = {
+    inviteCode: BytesLike;
+    inviteSignature: string;
+  }
+
+  export type CMetadata = {
+    address: string;
+    wallet: string;
+    nonceKey: bigint;
+  }
