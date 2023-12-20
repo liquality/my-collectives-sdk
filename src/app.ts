@@ -4,6 +4,7 @@ import {AppConfig} from "./config"
 // Functions to export
 export { Collective } from './collectives/index';
 export { Pool } from './pools/index';
+export { HoneyPot } from './honeyPots/index';
 
 export function setConfig(userConfig: Config) {
     let defaultConfig: Config = {

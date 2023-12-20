@@ -1,6 +1,6 @@
 {
   "name": "@koderholic/my-collectives",
-  "version": "1.3.0",
+  "version": "1.3.3",
   "description": "SDK to interact with the MyCollectives contracts",
   "repository": "https://github.com/liquality/my-collectives.git",
   "author": "Liquality Team",

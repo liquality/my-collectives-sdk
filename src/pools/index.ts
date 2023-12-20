@@ -55,12 +55,30 @@ export class Pool {
         return {tx};
     }
 
-    // distributeReward in pool contract
-    // public static async distributeReward(caller: ethers5.providers.Web3Provider, pool: string[]) {
+    // // distributeReward in pool contract
+    // public static async distributeReward(caller: ethers5.providers.Web3Provider, pools: string[]) {
     //     try {
     //         const signer = caller.getSigner();
 
-    //         // Get pool contract
+    //         // get distributeReward call data for pool
+    //         const distributeRewardCallData = this.getPoolDistributeRewardCallData()
+
+    //         for (const pool of pools) {
+    //             // Create user operation Tx
+    //             const userOpTx:Transaction[] = [
+    //                 {
+    //                     to: ethers5.utils.getAddress(pool),
+    //                     data: distributeRewardCallData,
+    //                     value: 0,
+    //                 }
+    //             ]
+    //             const userOperation = await buildUserOperation(signer, AppConfig.getWallet(), AppConfig.getNonceKey(), "", userOpTx)
+    //             console.log("built userOperation >>>> ", userOperation)
+    //             // sende userOps
+    //             const tx = await biconomyBundler.send(signer, AppConfig.getWallet(), userOperation)
+    //             console.log("tx >> ", tx)
+    //         }
+
     //         const poolContract = Pool__factory.connect(pool, caller)
     //         const tx = await poolContract.distributeReward(reward);
     //         await tx.wait();
@@ -96,6 +114,11 @@ export class Pool {
     private static getRecordPoolMintCallData(mintParam: MintParam) {
         const mintCallData = new ethers5.utils.Interface(Collective__factory.abi).encodeFunctionData("recordPoolMint", [mintParam.poolAddress, mintParam.recipient, mintParam.tokenID, mintParam.quantity, mintParam.amount]);
         return mintCallData;
+    }
+
+    private static getPoolDistributeRewardCallData() {
+        const distributeRewardCallData = Pool__factory.createInterface().encodeFunctionData("distributeReward");
+        return distributeRewardCallData;
     }
 
 }   

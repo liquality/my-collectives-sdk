@@ -1,15 +1,24 @@
 import {createMintClient} from "@zoralabs/protocol-sdk";
 import {custom, type Address, type PublicClient, type WalletClient, createWalletClient, encodeFunctionData} from "viem";
 import * as chains from 'viem/chains'
+import {Chain} from 'viem/chains'
 import * as ethers5 from "ethers5";
 import { CMetadata, MintParam } from "../../types/types";
 
 export async function callData(caller: ethers5.providers.Web3Provider, cMetadata: CMetadata, mintParam: MintParam) {
+    // get caller chain
+    console.log("chains >>> ", chains, "typeof chains >>> ", typeof chains)
+    const chain = getChain(chains, caller.network.chainId);
+    if (!chain) {
+        throw new Error(`Unsupported chainId: ${caller.network.chainId}`);
+    }
 
+    console.log("chain >>> ", chain)
     const walletClient = createWalletClient({
-        chain: chains[caller.network.name as keyof typeof chains],
+        chain,
         transport: custom((window as any).ethereum)
     })
+    console.log("walletClient >>> ", walletClient)
     const mintClient = createMintClient({chain: walletClient.chain!});
 
     // prepare the mint transaction, which can be simulated via an rpc with the public client.
@@ -37,4 +46,13 @@ export async function callData(caller: ethers5.providers.Web3Provider, cMetadata
     })
     console.log("data >>> ", data)
     return data;
+}
+
+function getChain(chains: any, chainId: any) {
+    for (const chain in chains) {
+        console.log("chain >>> ", chain, "chain info >>> ", chains[chain])
+        if (chains[chain].id === chainId) {
+            return chains[chain];
+        }
+      }
 }
