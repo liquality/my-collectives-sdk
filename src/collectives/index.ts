@@ -1,16 +1,17 @@
 import {CollectiveFactory__factory} from "../types/typechain-types/factories/contracts/fatories/CollectiveFatory.sol/CollectiveFactory__factory"
 import {Collective__factory} from "../types/typechain-types/factories/contracts/core/Collective__factory"
-import {COLLECTIVE_FACTORY_ADDRESS, ENTRYPOINT_ADDRESS, ENTRYPOINT_ABI} from "../libs/constants"
+import {COLLECTIVE_FACTORY_ADDRESS} from "../libs/constants"
 import {createPoolsParam, CMetadata, JoinCollectiveParam} from "../types/types"
 import { ethers } from "ethers";
 import {AppConfig} from "../config"
 import { Transaction } from "@biconomy/core-types"
-import {buildUserOperation, sendWithBiconomy, sendWithPimlico} from "../libs/userOp"
+import {buildUserOperation} from "../libs/userOp"
 import {generateUint192NonceKey} from "../libs/utils"
 import * as ethers5 from 'ethers5';
+import * as biconomyBundler from "../libs/bundlers/biconomy"
 
 // Create the collective module of the sdk
-export class Collectives {
+export class Collective {
     public static async create(caller: ethers5.providers.Web3Provider, poolParam: createPoolsParam, salt : ethers.BigNumberish) {
         try {
             const signer = caller.getSigner();
@@ -61,15 +62,9 @@ export class Collectives {
         
             const userOperation = await buildUserOperation(signer, cWallet, nonceKey, collectiveInitCode, userOpTx)
             console.log("built userOperation >>>> ", userOperation)
-            const tx = await sendWithBiconomy(userOperation)
-            console.log("tx receipt >>>> ", tx.userOperationReceipt, " tx hash: ", tx.transactionHash, " state ?>> ", tx.state)
-        
-            return {cAddress, cWallet, nonce:nonceKey, tx}; // {cAddress, cWallet, nonce:nonceKey}
-
-            // Local interact with entrypoint
-            // const entryContract = new ethers5.Contract(ENTRYPOINT_ADDRESS, ENTRYPOINT_ABI, signer)
-            // const tx = await entryContract.handleOps([userOperation], cWallet, {gasLimit: 1000000})
-            // console.log(" !! tx >>>> ", tx)
+            const tx = await biconomyBundler.send(signer, cWallet, userOperation)
+            console.log("tx >> ", tx)
+            // console.log("tx receipt >>>> ", tx.userOperationReceipt, " tx hash: ", tx.transactionHash, " state ?>> ", tx.state)
         
             return {cAddress, cWallet, nonce:nonceKey, tx}; // {cAddress, cWallet, nonce:nonceKey}
         } catch (error) {
@@ -78,71 +73,6 @@ export class Collectives {
             
         }
     
-    }
-    // create a pool
-    public static async createPools(caller: ethers5.providers.Web3Provider, cMetadata: CMetadata, poolParam: createPoolsParam) {
-        try {
-            const signer = caller.getSigner();
-            const createPoolsCallData = await this.getCreatePoolsCallData(cMetadata.address, poolParam);
-            console.log("createPoolsCallData >>>> ", createPoolsCallData)
-            // Create user operation Tx
-            let userOpTx:Transaction[] = [
-                {
-                    to: ethers5.utils.getAddress(cMetadata.address),
-                    data: createPoolsCallData,
-                    value: 0,
-                }
-            ]
-        
-            const userOperation = await buildUserOperation(signer, cMetadata.wallet, cMetadata.nonceKey, "", userOpTx)
-            console.log("built userOperation >>>> ", userOperation)
-
-            // Local interact with entrypoint
-            const entryContract = new ethers5.Contract(ENTRYPOINT_ADDRESS, ENTRYPOINT_ABI, signer)
-            const tx = await entryContract.handleOps([userOperation], ethers5.utils.getAddress("0x8626f6940E2eb28930eFb4CeF49B2d1F2C9C1199"))
-            // const tx = await sendWithBiconomy(userOperation)
-            // console.log("tx receipt >>>> ", tx.userOperationReceipt, " tx hash: ", tx.transactionHash, " state ?>> ", tx.state)
-            console.log("tx >>>> ", tx)
-            return {tx}; 
-        } catch (error) {
-            console.log("error createPools >>>> ", error)
-            throw error;
-            
-        }
-    }
-
-    // join a collective
-    public static async join(caller: ethers5.providers.Web3Provider, cMetadata: CMetadata, JoinParam:JoinCollectiveParam) {
-        try {
-            const signer = caller.getSigner();
-            const joinCollectivesCallData = await this.getJoinCollectiveCallData(cMetadata.address, JoinParam);
-            console.log("joinCollectivesCallData >>>> ", joinCollectivesCallData)
-            // Create user operation Tx
-            let userOpTx:Transaction[] = [
-                {
-                    to: ethers5.utils.getAddress(cMetadata.address),
-                    data: joinCollectivesCallData,
-                    value: 0,
-                }
-            ]
-        
-            const userOperation = await buildUserOperation(signer, cMetadata.wallet, cMetadata.nonceKey, "", userOpTx)
-            console.log("built userOperation >>>> ", userOperation)
-
-            // Local interact with entrypoint
-            // const entryContract = new ethers5.Contract(ENTRYPOINT_ADDRESS, ENTRYPOINT_ABI, signer)
-            // const tx = await entryContract.handleOps([userOperation], cMetadata.wallet)
-            // console.log(" !! tx >>>> ", tx)
-
-            const tx = await sendWithBiconomy(userOperation)
-            console.log("tx receipt >>>> ", tx.userOperationReceipt, " tx hash: ", tx.transactionHash, " state ?>> ", tx.state)
-        
-            return {tx}; 
-        } catch (error) {
-            console.log("error joinCollectives >>>> ", error)
-            throw error;
-            
-        }
     }
 
     // Check if member of collective
@@ -177,8 +107,9 @@ export class Collectives {
         
             const userOperation = await buildUserOperation(signer, cMetadata.wallet, cMetadata.nonceKey, "", userOpTx)
             console.log("built userOperation >>>> ", userOperation)
-            const tx = await sendWithBiconomy(userOperation)
-            console.log("tx receipt >>>> ", tx.userOperationReceipt, " tx hash: ", tx.transactionHash, " state ?>> ", tx.state)
+            const tx = await biconomyBundler.send(signer, cMetadata.wallet, userOperation)
+            console.log("tx >>>> ", tx)
+            // console.log("tx receipt >>>> ", tx.userOperationReceipt, " tx hash: ", tx.transactionHash, " state ?>> ", tx.state)
             
 
             // const entryContract = new ethers5.Contract(ENTRYPOINT_ADDRESS, ENTRYPOINT_ABI, signer)
@@ -188,6 +119,86 @@ export class Collectives {
             return {tx}; 
         } catch (error) {
             console.log("error leaveCollectives >>>> ", error)
+            throw error;
+            
+        }
+    }
+
+    // join a collective
+    public static async join(caller: ethers5.providers.Web3Provider, cMetadata: CMetadata, JoinParam:JoinCollectiveParam) {
+        try {
+            const signer = caller.getSigner();
+            const joinCollectivesCallData = await this.getJoinCollectiveCallData(cMetadata.address, JoinParam);
+            console.log("joinCollectivesCallData >>>> ", joinCollectivesCallData)
+            // Create user operation Tx
+            let userOpTx:Transaction[] = [
+                {
+                    to: ethers5.utils.getAddress(cMetadata.address),
+                    data: joinCollectivesCallData,
+                    value: 0,
+                }
+            ]
+        
+            const userOperation = await buildUserOperation(signer, cMetadata.wallet, cMetadata.nonceKey, "", userOpTx)
+            console.log("built userOperation >>>> ", userOperation)
+
+            // Local interact with entrypoint
+            // const entryContract = new ethers5.Contract(ENTRYPOINT_ADDRESS, ENTRYPOINT_ABI, signer)
+            // const tx = await entryContract.handleOps([userOperation], cMetadata.wallet)
+            // console.log(" !! tx >>>> ", tx)
+
+            const tx = await biconomyBundler.send(signer, cMetadata.wallet, userOperation)
+            console.log("tx >>>> ", tx)
+            
+            // console.log("tx receipt >>>> ", tx.userOperationReceipt, " tx hash: ", tx.transactionHash, " state ?>> ", tx.state)
+        
+            return {tx}; 
+        } catch (error) {
+            console.log("error joinCollectives >>>> ", error)
+            throw error;
+            
+        }
+    }
+
+    // create a pool
+    public static async createPools(caller: ethers5.providers.Web3Provider, cMetadata: CMetadata, poolParam: createPoolsParam) {
+        try {
+            const signer = caller.getSigner();
+            const createPoolsCallData = await this.getCreatePoolsCallData(cMetadata.address, poolParam);
+            console.log("createPoolsCallData >>>> ", createPoolsCallData)
+            // Create user operation Tx
+            let userOpTx:Transaction[] = [
+                {
+                    to: ethers5.utils.getAddress(cMetadata.address),
+                    data: createPoolsCallData,
+                    value: 0,
+                }
+            ]
+        
+            const userOperation = await buildUserOperation(signer, cMetadata.wallet, cMetadata.nonceKey, "", userOpTx)
+            console.log("built userOperation >>>> ", userOperation)
+
+          const tx = await biconomyBundler.send(signer, cMetadata.wallet, userOperation)
+            // console.log("tx receipt >>>> ", tx.userOperationReceipt, " tx hash: ", tx.transactionHash, " state ?>> ", tx.state)
+            console.log("tx >>>> ", tx)
+            return {tx}; 
+        } catch (error) {
+            console.log("error createPools >>>> ", error)
+            throw error;
+            
+        }
+    }
+
+    // Get pool
+    public static async getPoolByHoneyPot(caller: ethers5.providers.Web3Provider, cMetadata: CMetadata, honeyPot: string) {
+        try {
+            const signer = caller.getSigner();
+            const collective = Collective__factory.connect(cMetadata.address, AppConfig.getProvider());
+            const pools = await collective.pools(honeyPot);
+            console.log("pools >>>> ", pools)
+            return {pools}; 
+        } catch (error) {
+            console.log("error getPools >>>> ", error)
             throw error;
             
         }
@@ -220,7 +231,6 @@ export class Collectives {
         // const createPoolCallData = Collective__factory.createInterface().encodeFunctionData("createPools", [poolParam.tokenContracts, poolParam.honeyPots]);
         return createPoolCallData;
     }
-
     private static async getJoinCollectiveCallData(cAddress: string, joinParam: JoinCollectiveParam) {
         const JoinCollectiveCallData = Collective__factory.createInterface().encodeFunctionData("joinCollective", [joinParam.inviteSignature, joinParam.inviteCode]);
         return JoinCollectiveCallData;

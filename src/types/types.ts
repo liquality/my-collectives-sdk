@@ -1,5 +1,10 @@
 import { BigNumberish, BytesLike, ethers } from "ethers";
 
+export enum SupportedPlatforms {
+    Zora = "Zora",
+    Sound = "Sound",
+}
+
 export type IUserOperation = {
     sender: string;
     nonce: string;
@@ -56,4 +61,14 @@ export type IUserOperation = {
     address: string;
     wallet: string;
     nonceKey: bigint;
+  }
+
+  export type MintParam = {
+    recipient: string;
+    tokenID: number;
+    amount: bigint;
+    quantity: number;
+    platform: SupportedPlatforms;
+    tokenContract: string;
+    poolAddress: string;
   }
