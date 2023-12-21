@@ -1,7 +1,7 @@
 import {CollectiveFactory__factory} from "../types/typechain-types/factories/contracts/fatories/CollectiveFatory.sol/CollectiveFactory__factory"
 import {Collective__factory} from "../types/typechain-types/factories/contracts/core/Collective__factory"
-import {COLLECTIVE_FACTORY_ADDRESS} from "../libs/constants"
-import {createPoolsParam, CMetadata, JoinCollectiveParam} from "../types/types"
+import {ADDRESSES, OPERATOR} from "../libs/constants"
+import {createPoolsParam, CMetadata, JoinCollectiveParam, SupportedChains} from "../types/types"
 import { ethers } from "ethers";
 import {AppConfig} from "../config"
 import { Transaction } from "@biconomy/core-types"
@@ -10,7 +10,6 @@ import {generateUint192NonceKey} from "../libs/utils"
 import * as ethers5 from 'ethers5';
 import * as biconomyBundler from "../libs/bundlers/biconomy"
 import * as pimlicoBundler from "../libs/bundlers/pimlico"
-import { sign } from "crypto";
 
 // Create the collective module of the sdk
 export class Collective {
@@ -21,11 +20,10 @@ export class Collective {
             // Get collective factory
             const cFactory = await this.getCFactory(signer);
             const initiator = await signer.getAddress();
-            const operator = ethers.Wallet.fromPhrase(AppConfig.OPERATOR_MNEMONIC).address;
 
             // Get collective & wallet create2 address
-            const cAddress = await cFactory.getCollective(initiator, operator, ethers.toBigInt(salt));
-            const cWallet = await cFactory.getCWallet(cAddress, operator, ethers.toBigInt(salt));
+            const cAddress = await cFactory.getCollective(initiator, OPERATOR, ethers.toBigInt(salt));
+            const cWallet = await cFactory.getCWallet(cAddress, OPERATOR, ethers.toBigInt(salt));
             console.log("cAddress >>>> ", cAddress, " cWallet >>>> ", cWallet)
 
             // Check if collective has already beeen deployed
@@ -36,11 +34,11 @@ export class Collective {
 
             
             // get collective && wallet init code
-            const initCode =  cFactory.interface.encodeFunctionData("createCollective", [initiator, operator, ethers.toBigInt(salt)]);
+            const initCode =  cFactory.interface.encodeFunctionData("createCollective", [initiator, OPERATOR, ethers.toBigInt(salt)]);
 
             // Append cFactory address to collective init code
             // Convert the address to a byte array (Buffer)
-            const factoryAddressBuffer = Buffer.from(ethers.toBeArray(COLLECTIVE_FACTORY_ADDRESS));
+            const factoryAddressBuffer = Buffer.from(ethers.toBeArray(ADDRESSES[(await caller.getNetwork()).chainId as SupportedChains].collectiveFactory));
             // Convert the call data to a byte array (Buffer)
             const initCodeBuffer = Buffer.from(ethers.toBeArray(initCode));
             // Concatenate the two buffers
@@ -90,39 +88,6 @@ export class Collective {
         }
     }
 
-    // leave a collective
-    public static async leave(caller: ethers5.providers.Web3Provider, cMetadata: CMetadata) {
-        try {
-            const signer = caller.getSigner();
-            const leaveCollectiveCallData = await this.getLeaveCollectiveCallData();
-            console.log("leaveCollectiveCallData >>>> ", leaveCollectiveCallData)
-            // Create user operation Tx
-            let userOpTx:Transaction[] = [
-                {
-                    to: ethers5.utils.getAddress(cMetadata.address),
-                    data: leaveCollectiveCallData,
-                    value: 0,
-                }
-            ]
-        
-            const userOperation = await buildUserOperation(signer, cMetadata.wallet, cMetadata.nonceKey, "", userOpTx)
-            console.log("built userOperation >>>> ", userOperation)
-            const tx = await pimlicoBundler.send(userOperation, signer)
-            console.log("tx >>>> ", tx)
-            // console.log("tx receipt >>>> ", tx.userOperationReceipt, " tx hash: ", tx.transactionHash, " state ?>> ", tx.state)
-            
-
-            // const entryContract = new ethers5.Contract(ENTRYPOINT_ADDRESS, ENTRYPOINT_ABI, signer)
-            // const tx = await entryContract.handleOps([userOperation], cMetadata.wallet)
-            // console.log(" !! tx >>>> ", tx)
-
-            return {tx}; 
-        } catch (error) {
-            console.log("error leaveCollectives >>>> ", error)
-            throw error;
-            
-        }
-    }
 
     // join a collective
     public static async join(caller: ethers5.providers.Web3Provider, cMetadata: CMetadata, JoinParam:JoinCollectiveParam) {
@@ -140,21 +105,62 @@ export class Collective {
             ]
         
             const userOperation = await buildUserOperation(signer, cMetadata.wallet, cMetadata.nonceKey, "", userOpTx)
-            console.log("built userOperation >>>> ", userOperation)
-
-            // Local interact with entrypoint
-            // const entryContract = new ethers5.Contract(ENTRYPOINT_ADDRESS, ENTRYPOINT_ABI, signer)
-            // const tx = await entryContract.handleOps([userOperation], cMetadata.wallet)
-            // console.log(" !! tx >>>> ", tx)
-
             const tx = await pimlicoBundler.send(userOperation, signer)
-            console.log("tx >>>> ", tx)
-            
-            // console.log("tx receipt >>>> ", tx.userOperationReceipt, " tx hash: ", tx.transactionHash, " state ?>> ", tx.state)
-        
-            return {tx}; 
+
+            return tx; 
         } catch (error) {
             console.log("error joinCollectives >>>> ", error)
+            throw error;
+            
+        }
+    }
+
+    // leave a collective
+    public static async leave(caller: ethers5.providers.Web3Provider, cMetadata: CMetadata) {
+        try {
+            const signer = caller.getSigner();
+            const leaveCollectiveCallData = await this.getLeaveCollectiveCallData();
+            console.log("leaveCollectiveCallData >>>> ", leaveCollectiveCallData)
+            // Create user operation Tx
+            let userOpTx:Transaction[] = [
+                {
+                    to: ethers5.utils.getAddress(cMetadata.address),
+                    data: leaveCollectiveCallData,
+                    value: 0,
+                }
+            ]
+        
+            const userOperation = await buildUserOperation(signer, cMetadata.wallet, cMetadata.nonceKey, "", userOpTx)
+            const tx = await pimlicoBundler.send(userOperation, signer)
+
+            return tx; 
+        } catch (error) {
+            console.log("error leaveCollectives >>>> ", error)
+            throw error;
+            
+        }
+    }
+
+    // removeMember from collective
+    public static async removeMember(caller: ethers5.providers.Web3Provider, cMetadata: CMetadata, member: string) {
+        try {
+            const signer = caller.getSigner();
+            const removeMemberCallData = this.getRemoveMemberCallData();
+            // Create user operation Tx
+            let userOpTx:Transaction[] = [
+                {
+                    to: ethers5.utils.getAddress(cMetadata.address),
+                    data: removeMemberCallData,
+                    value: 0,
+                }
+            ]
+        
+            const userOperation = await buildUserOperation(signer, cMetadata.wallet, cMetadata.nonceKey, "", userOpTx)
+            const tx = await pimlicoBundler.send(userOperation, signer)
+
+            return tx; 
+        } catch (error) {
+            console.log("error removeMember >>>> ", error)
             throw error;
             
         }
@@ -165,7 +171,6 @@ export class Collective {
         try {
             const signer = caller.getSigner();
             const createPoolsCallData = await this.getCreatePoolsCallData(cMetadata.address, poolParam);
-            console.log("createPoolsCallData >>>> ", createPoolsCallData)
             // Create user operation Tx
             let userOpTx:Transaction[] = [
                 {
@@ -176,12 +181,9 @@ export class Collective {
             ]
         
             const userOperation = await buildUserOperation(signer, cMetadata.wallet, cMetadata.nonceKey, "", userOpTx)
-            console.log("built userOperation >>>> ", userOperation)
+            const tx = await pimlicoBundler.send(userOperation, signer)
+            return tx; 
 
-          const tx = await pimlicoBundler.send(userOperation, signer)
-            // console.log("tx receipt >>>> ", tx.userOperationReceipt, " tx hash: ", tx.transactionHash, " state ?>> ", tx.state)
-            console.log("tx >>>> ", tx)
-            return {tx}; 
         } catch (error) {
             console.log("error createPools >>>> ", error)
             throw error;
@@ -196,7 +198,7 @@ export class Collective {
             const collective = Collective__factory.connect(cMetadata.address, AppConfig.getProvider());
             const pools = await collective.pools(honeyPot);
             console.log("pools >>>> ", pools)
-            return {pools}; 
+            return pools["id"]; 
         } catch (error) {
             console.log("error getPools >>>> ", error)
             throw error;
@@ -240,8 +242,14 @@ export class Collective {
         return leaveCollectiveCallData;
     }
     private static async getCFactory(runner : ethers5.ethers.providers.JsonRpcSigner) {
-        const cFactory = new ethers5.Contract(COLLECTIVE_FACTORY_ADDRESS, CollectiveFactory__factory.abi, runner)
+        const collectiveFactory = ADDRESSES[(await runner.getChainId()) as SupportedChains].collectiveFactory;
+        const cFactory = new ethers5.Contract(collectiveFactory, CollectiveFactory__factory.abi, runner)
         return cFactory;
+    }
+    //getRemoveMemberCallData
+    private static getRemoveMemberCallData() {
+        const removeMemberCallData = new ethers.Interface(Collective__factory.abi).encodeFunctionData("removeMember");
+        return removeMemberCallData;
     }
 }
 

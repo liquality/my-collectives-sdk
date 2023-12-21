@@ -23,6 +23,8 @@ export function generateUint192NonceKey() : bigint{
 }
 
 export async function rpcCall(url: string, method: string, params: any[]) {
+    try {
+        
     let response = await fetch(url, {
         method: 'POST',
         headers: {
@@ -35,5 +37,16 @@ export async function rpcCall(url: string, method: string, params: any[]) {
           params
         }),
       })
-      return (await response.json()).result
+      const jsonResponse = await response.json()
+
+      if (jsonResponse.error) {
+        console.log("jsonResponse.error >>>> ", jsonResponse.error)
+        throw new Error(jsonResponse.error.message)
+      }
+
+      return jsonResponse.result
+
+    } catch (error) {
+        throw error
+    }
 }

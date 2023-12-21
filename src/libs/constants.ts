@@ -1,33 +1,43 @@
 // This file stores web3 related constants such as addresses, token definitions, ETH currency references and ABI's
+import { SupportedChains, Deployment } from "../types/types"
 
-// Addresses
-export const COLLECTIVE_FACTORY_ADDRESS =
-'0xCfC03cA81380338703860238d0d6caD552232877' // mumbai-'0xc2b5189c3D5be89147780591A92a374c7d69D3D3' //goerli-
-export const HONEY_POT_FACTORY_ADDRESS = '0xc2b5189c3D5be89147780591A92a374c7d69D3D3' //mumbai-"0x6fF619e8856F737d58cAf03871Cb3637C6Ed3308"//goerli-
-export const ENTRYPOINT_ADDRESS = '0x5FF137D4b0FDCD49DcA30c7CF57E578a026d2789'
+// Deployed addresses
+export const ADDRESSES : { [key in SupportedChains]: Deployment } = {
+  [SupportedChains.GOERLI]: {
+    collectiveFactory: '0xCfC03cA81380338703860238d0d6caD552232877',
+    honeyPotFactory: '0xce3795B42857bE44cF8a384c8b50246FB7CaC691',
+    entryPoint: '0x5FF137D4b0FDCD49DcA30c7CF57E578a026d2789',
+  },
+  [SupportedChains.ARBITRUM]: {
+    collectiveFactory: '0xCfC03cA81380338703860238d0d6caD552232877',
+    honeyPotFactory: '0xc2b5189c3D5be89147780591A92a374c7d69D3D3',
+    entryPoint: '0x5FF137D4b0FDCD49DcA30c7CF57E578a026d2789',
+  },
+  [SupportedChains.BASE]: {
+    collectiveFactory: '0x5FF137D4b0FDCD49DcA30c7CF57E578a026d2789',
+    honeyPotFactory: '0x00F58322E0c66BFFb613DbC2D38b5275A0Fc7d2f',
+    entryPoint: '0x5FF137D4b0FDCD49DcA30c7CF57E578a026d2789',
+  },
+  [SupportedChains.OPTIMISM]: {
+    collectiveFactory: '0x5FF137D4b0FDCD49DcA30c7CF57E578a026d2789',
+    honeyPotFactory: '0x00F58322E0c66BFFb613DbC2D38b5275A0Fc7d2f',
+    entryPoint: '0x5FF137D4b0FDCD49DcA30c7CF57E578a026d2789',
+  },
+  [SupportedChains.ZORA]: {
+    collectiveFactory: '0x5FF137D4b0FDCD49DcA30c7CF57E578a026d2789',
+    honeyPotFactory: '0x00F58322E0c66BFFb613DbC2D38b5275A0Fc7d2f',
+    entryPoint: '0x5FF137D4b0FDCD49DcA30c7CF57E578a026d2789',
+  },
+}
+export const OPERATOR = "0xD40E6a05Fd759DdcAAA8D37375Db6C857DAf424e"
 
 // Transactions
-export const CALL_GAS_LIMIT = 7000000
+export const CALL_GAS_LIMIT = 3000000
 export const MAX_FEE_PER_GAS = 100000000000
 export const MAX_PRIORITY_FEE_PER_GAS = 100000000000
 export const USER_OPERATIONS_DEFAULT_SIGNATURE = "0xd81911975579ed8b5de60261de171e32c380980a1758fedd3a182590d161cc9b598e4b2adaf7d03dce34ed889bc7321ae153accc9691ee3db9ed0dbe9abe5dd91b"
 
 // ABI's
-export const ERC20_ABI = [
-  // Read-Only Functions
-  'function balanceOf(address owner) view returns (uint256)',
-  'function allowance(address owner, address spender) view returns (uint256)',
-  'function decimals() view returns (uint8)',
-  'function symbol() view returns (string)',
-
-  // Authenticated Functions
-  'function transfer(address to, uint amount) returns (bool)',
-  'function approve(address _spender, uint256 _value) returns (bool)',
-
-  // Events
-  'event Transfer(address indexed from, address indexed to, uint amount)',
-]
-
 export const USER_OPERATIONS_ABI = {
   components: [
     {name: "sender", type: "address"},

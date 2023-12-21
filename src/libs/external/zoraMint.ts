@@ -1,25 +1,22 @@
 import {createMintClient} from "@zoralabs/protocol-sdk";
-import {custom, type Address, type PublicClient, type WalletClient, createWalletClient, encodeFunctionData} from "viem";
+import {custom, createWalletClient, encodeFunctionData, createPublicClient} from "viem";
 import * as chains from 'viem/chains'
-import {Chain} from 'viem/chains'
 import * as ethers5 from "ethers5";
 import { CMetadata, MintParam } from "../../types/types";
 
 export async function callData(caller: ethers5.providers.Web3Provider, cMetadata: CMetadata, mintParam: MintParam) {
     // get caller chain
-    console.log("chains >>> ", chains, "typeof chains >>> ", typeof chains)
-    const chain = getChain(chains, caller.network.chainId);
+    const chain = getChain(chains, (await caller.getNetwork()).chainId);
     if (!chain) {
         throw new Error(`Unsupported chainId: ${caller.network.chainId}`);
     }
-
-    console.log("chain >>> ", chain)
     const walletClient = createWalletClient({
         chain,
         transport: custom((window as any).ethereum)
     })
-    console.log("walletClient >>> ", walletClient)
     const mintClient = createMintClient({chain: walletClient.chain!});
+    const publicClient = createPublicClient({
+        transport: custom((window as any).ethereum), chain: walletClient.chain!});
 
     // prepare the mint transaction, which can be simulated via an rpc with the public client.
     const prepared = await mintClient.makePrepareMintTokenParams({
@@ -38,19 +35,29 @@ export async function callData(caller: ethers5.providers.Web3Provider, cMetadata
         mintReferral: `0x${cMetadata.address.slice(2)}`,
         },
     });
-    console.log("prepared ???> ", prepared)
+
+    console.log("prepared >>>> ", prepared)
     const data = encodeFunctionData({
         abi: prepared.abi,
         functionName: prepared.functionName,
         args: [...(prepared.args as Array<any>)]
     })
-    console.log("data >>> ", data)
+    console.log("data >>>> ", data)
+
+    // simulate the transaction and get any validation errors
+    const { request } = await publicClient.simulateContract(prepared);
+    console.log("request zora  >>>> ", request)
+    // submit the transaction to the network
+    const txHash = await walletClient.writeContract(request);
+    console.log("txHash zora >>>> ", txHash)
+    // wait for the transaction to be complete
+    await publicClient.waitForTransactionReceipt({hash: txHash});
+    
     return data;
 }
 
 function getChain(chains: any, chainId: any) {
     for (const chain in chains) {
-        console.log("chain >>> ", chain, "chain info >>> ", chains[chain])
         if (chains[chain].id === chainId) {
             return chains[chain];
         }

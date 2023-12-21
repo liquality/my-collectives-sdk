@@ -1,11 +1,12 @@
 
 import {  PaymasterMode } from "@biconomy/paymaster";
-import { IUserOperation, TransactionResponse } from '../../types/types';
-import {ENTRYPOINT_ADDRESS, CALL_GAS_LIMIT} from "../constants"
+import { IUserOperation, SupportedChains, TransactionResponse } from '../../types/types';
+import {ADDRESSES, CALL_GAS_LIMIT} from "../constants"
 import * as ethers5 from 'ethers5';
 import { IBundler, Bundler } from "@biconomy/bundler";
 import { AppConfig } from "../../config";
 import { rpcCall } from "../utils"; 
+import { queryReceipt } from "../userOp";
 
 
 export async function estimate(userOperation: IUserOperation, signer: ethers5.Signer) {
@@ -65,13 +66,17 @@ export async function sponsor(userOperation: IUserOperation, signer: ethers5.Sig
   
 export async function send(userOperation: IUserOperation, signer: ethers5.Signer) : Promise<TransactionResponse> {
 try {
+    const entryPoint = ADDRESSES[await signer.getChainId() as SupportedChains].entryPoint
     const result = await rpcCall(await getRPC(signer), "eth_sendUserOperation", [
         userOperation,
-        ENTRYPOINT_ADDRESS,
+        entryPoint,
         {
             "simulation_type": "validation"
         }
-    ])
+    ]) 
+    if (!result) {
+        throw new Error("Transaction failed to send")
+    }
     const receipt = await queryReceipt(await getRPC(signer), result.userOpHash)
 
     if (receipt === null) {
@@ -107,30 +112,11 @@ function getBundler(chainId: number):  IBundler {
     const bundler: IBundler = new Bundler({
         bundlerUrl: `https://bundler.biconomy.io/api/v2/${chainId}/${AppConfig.BICONOMY_BUNDLER_API_KEY}`,     
         chainId,
-        entryPointAddress: ENTRYPOINT_ADDRESS,
+        entryPointAddress: ADDRESSES[chainId as SupportedChains].entryPoint,
     })
     return bundler
 }
 
 async function getRPC(signer: ethers5.Signer) {
     return `https://bundler.biconomy.io/api/v2/${await signer.getChainId()}/${AppConfig.BICONOMY_BUNDLER_API_KEY}`
-}
-
-async function queryReceipt(pimlicoEndpoint:string, userOpHash: string) : Promise<any> {
-    try {
-        let receipt = null
-        let retries = 0
-        while (receipt === null && retries < 4) {
-            await new Promise((resolve) => setTimeout(resolve, 1000))
-            const receipt = await rpcCall(pimlicoEndpoint, "eth_getUserOperationReceipt", [userOpHash])
-            console.log(
-                receipt === null ? "Receipt not found..." : `Receipt found!\nTransaction hash: ${JSON.stringify(receipt)}`
-            )
-            retries++
-        }
-        return receipt
-    } catch (error) {
-        console.log("BICONOMY__queryReceipt error >>>> ", error)
-        return null
-    }
 }

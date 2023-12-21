@@ -1,8 +1,25 @@
 import { BigNumberish, BytesLike, ethers } from "ethers";
 
 export enum SupportedPlatforms {
-    Zora = "Zora",
-    Sound = "Sound",
+    ZORA = "Zora",
+    SOUND = "Sound",
+    LOCAL = "Local",
+}
+
+// ARBITRUM_TESTNET = "421613",
+// OPTIMISM_TESTNET = "420",
+export enum SupportedChains {
+  BASE = 8453,
+  ZORA = 7777777,
+  ARBITRUM = 42161,
+  OPTIMISM = 10,
+  GOERLI = 5,
+}
+
+export type Deployment = {
+  collectiveFactory: string;
+  honeyPotFactory: string;
+  entryPoint: string;
 }
 
 export type IUserOperation = {
@@ -25,7 +42,6 @@ export type IUserOperation = {
   }
 
   export type Config = {
-    OPERATOR_MNEMONIC: string;
     RPC_URL: string;
     PIMLICO_API_KEY: string;
     BICONOMY_PAYMASTER: string;
