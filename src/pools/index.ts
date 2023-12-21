@@ -10,6 +10,7 @@ import { CWallet__factory } from "../types/typechain-types/factories/contracts/c
 import { Pool__factory } from "../types/typechain-types"
 import * as zoraMint from "../libs/external/zoraMint"
 import * as biconomyBundler from "../libs/bundlers/biconomy"
+import * as pimlicoBundler from "../libs/bundlers/pimlico"
 
 // Create the pool module of the sdk
 export class Pool {
@@ -39,18 +40,13 @@ export class Pool {
 
         // depositTo cwallet by signer if amount > 0
         const cWalletContract = new ethers5.Contract(cMetadata.wallet, CWallet__factory.abi, signer)
+        console.log("cWallet balance >>>> ", ethers.formatEther(await cWalletContract.balance(await signer.getAddress())))
         if (mintParam.amount > 0) {
             const tx = await cWalletContract.depositTo(await signer.getAddress(), {value: mintParam.amount})
             await tx.wait()
         }
-        
-        async function sendUserOps() {
-            setTimeout(async () => {
-                const tx = await biconomyBundler.send(signer, cMetadata.wallet, userOperation)
-                console.log("tx >> ", tx)
-            }, 2000)
-        }
-        const tx = await sendUserOps()
+        console.log("cWallet balance >>>> ", ethers.formatEther(await cWalletContract.balance(await signer.getAddress())))
+        const tx = await pimlicoBundler.send(userOperation, signer)
 
         return {tx};
     }
@@ -75,7 +71,7 @@ export class Pool {
     //             const userOperation = await buildUserOperation(signer, AppConfig.getWallet(), AppConfig.getNonceKey(), "", userOpTx)
     //             console.log("built userOperation >>>> ", userOperation)
     //             // sende userOps
-    //             const tx = await biconomyBundler.send(signer, AppConfig.getWallet(), userOperation)
+    //             const tx = await pimlicoBundler.send(userOperation, await signer.getChainId())
     //             console.log("tx >> ", tx)
     //         }
 

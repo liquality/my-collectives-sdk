@@ -28,6 +28,8 @@ export type IUserOperation = {
     OPERATOR_MNEMONIC: string;
     RPC_URL: string;
     PIMLICO_API_KEY: string;
+    BICONOMY_PAYMASTER: string;
+    BICONOMY_BUNDLER_API_KEY: string;
   }
 
   export type sendUserOpsRPCParams = {
@@ -71,4 +73,10 @@ export type IUserOperation = {
     platform: SupportedPlatforms;
     tokenContract: string;
     poolAddress: string;
+  }
+
+  export type TransactionResponse = {
+    userOpHash: string;
+    txHash: string;
+    status: string;
   }

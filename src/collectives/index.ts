@@ -9,6 +9,8 @@ import {buildUserOperation} from "../libs/userOp"
 import {generateUint192NonceKey} from "../libs/utils"
 import * as ethers5 from 'ethers5';
 import * as biconomyBundler from "../libs/bundlers/biconomy"
+import * as pimlicoBundler from "../libs/bundlers/pimlico"
+import { sign } from "crypto";
 
 // Create the collective module of the sdk
 export class Collective {
@@ -62,11 +64,9 @@ export class Collective {
         
             const userOperation = await buildUserOperation(signer, cWallet, nonceKey, collectiveInitCode, userOpTx)
             console.log("built userOperation >>>> ", userOperation)
-            const tx = await biconomyBundler.send(signer, cWallet, userOperation)
-            console.log("tx >> ", tx)
-            // console.log("tx receipt >>>> ", tx.userOperationReceipt, " tx hash: ", tx.transactionHash, " state ?>> ", tx.state)
-        
-            return {cAddress, cWallet, nonce:nonceKey, tx}; // {cAddress, cWallet, nonce:nonceKey}
+            const tx = await pimlicoBundler.send(userOperation, signer)
+
+            return {cAddress, cWallet, nonce:nonceKey, tx}; 
         } catch (error) {
             console.log("error createCollective >>>> ", error)
             throw error;
@@ -107,7 +107,7 @@ export class Collective {
         
             const userOperation = await buildUserOperation(signer, cMetadata.wallet, cMetadata.nonceKey, "", userOpTx)
             console.log("built userOperation >>>> ", userOperation)
-            const tx = await biconomyBundler.send(signer, cMetadata.wallet, userOperation)
+            const tx = await pimlicoBundler.send(userOperation, signer)
             console.log("tx >>>> ", tx)
             // console.log("tx receipt >>>> ", tx.userOperationReceipt, " tx hash: ", tx.transactionHash, " state ?>> ", tx.state)
             
@@ -147,7 +147,7 @@ export class Collective {
             // const tx = await entryContract.handleOps([userOperation], cMetadata.wallet)
             // console.log(" !! tx >>>> ", tx)
 
-            const tx = await biconomyBundler.send(signer, cMetadata.wallet, userOperation)
+            const tx = await pimlicoBundler.send(userOperation, signer)
             console.log("tx >>>> ", tx)
             
             // console.log("tx receipt >>>> ", tx.userOperationReceipt, " tx hash: ", tx.transactionHash, " state ?>> ", tx.state)
@@ -178,7 +178,7 @@ export class Collective {
             const userOperation = await buildUserOperation(signer, cMetadata.wallet, cMetadata.nonceKey, "", userOpTx)
             console.log("built userOperation >>>> ", userOperation)
 
-          const tx = await biconomyBundler.send(signer, cMetadata.wallet, userOperation)
+          const tx = await pimlicoBundler.send(userOperation, signer)
             // console.log("tx receipt >>>> ", tx.userOperationReceipt, " tx hash: ", tx.transactionHash, " state ?>> ", tx.state)
             console.log("tx >>>> ", tx)
             return {tx}; 

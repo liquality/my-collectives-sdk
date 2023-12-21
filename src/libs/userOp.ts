@@ -9,6 +9,7 @@ import {ENTRYPOINT_ADDRESS, ENTRYPOINT_ABI, USER_OPERATIONS_DEFAULT_SIGNATURE} f
 import * as ethers5 from 'ethers5';
 import { AddressLike, BigNumberish } from 'ethers/lib.esm';
 import * as biconomyBundler from "./bundlers/biconomy"
+import * as pimlicoBundler from "./bundlers/pimlico"
 
 
 
@@ -20,28 +21,26 @@ export async function buildUserOperation(signer: ethers5.Signer, smartAccount: s
     // Get default userOperation
     let userOperation: IUserOperation = await InitializeUserOperation(smartAccount, nonce, executeCallData)
     // Add initCode if it exist
+    console.log("collectiveInitCode >>>> ", collectiveInitCode)
     if (collectiveInitCode) {
       userOperation.initCode = collectiveInitCode
     }
-
+    console.log("network >>>> ", JSON.stringify((await signer.provider?.getNetwork())))
     // Get fee & gas estimations
-    const feeData = await biconomyBundler.getFeeData()
+    const feeData = await pimlicoBundler.getFeeData(signer)//await signer.getFeeData()//
     userOperation.maxFeePerGas = feeData.maxFeePerGas!.toString()
     userOperation.maxPriorityFeePerGas = feeData.maxPriorityFeePerGas!.toString()
 
     let estimationOps = {...userOperation}
     estimationOps.signature = USER_OPERATIONS_DEFAULT_SIGNATURE
 
-    console.log("fee >> ", ((BigInt(userOperation.maxFeePerGas) * BigInt(userOperation.callGasLimit)) + (BigInt(userOperation.maxPriorityFeePerGas) * BigInt(userOperation.preVerificationGas)) + (BigInt(userOperation.verificationGasLimit) * BigInt(userOperation.maxFeePerGas))).toString())
-   
-    let estimations = await biconomyBundler.estimate(estimationOps)
-    userOperation.callGasLimit = estimations.callGasLimit.toString()//7000264//
-    userOperation.preVerificationGas = estimations.preVerificationGas.toString()//800808//
-    userOperation.verificationGasLimit = estimations.verificationGasLimit.toString() //600401 //
+    // let estimations = await pimlicoBundler.estimate(estimationOps, signer)
+    // userOperation.callGasLimit = estimations.callGasLimit.toString()//7000264//
+    // userOperation.preVerificationGas = estimations.preVerificationGas.toString()//800808//
+    // userOperation.verificationGasLimit = estimations.verificationGasLimit.toString() //600401 //
     
-
     // Get gas estimation for user oeperation
-    const paymasterAndDataResponse = await biconomyBundler.sponsor(userOperation)
+    const paymasterAndDataResponse = await pimlicoBundler.sponsor(userOperation, signer)
     userOperation.paymasterAndData = paymasterAndDataResponse.paymasterAndData
     console.log("estimations >>>> ", paymasterAndDataResponse)
     // if (
@@ -115,9 +114,9 @@ async function InitializeUserOperation(smartAccount: string, nonce: string, exec
     nonce: nonce,
     initCode: '0x',
     callData: executeCallData,
-    callGasLimit: "0",
-    preVerificationGas: "0",
-    verificationGasLimit: "0",
+    callGasLimit: "7000000",
+    preVerificationGas: "7000000",
+    verificationGasLimit: "7000000",
     maxFeePerGas: "0",
     maxPriorityFeePerGas: "0",
     signature: "0x",

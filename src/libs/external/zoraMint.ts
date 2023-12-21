@@ -42,7 +42,7 @@ export async function callData(caller: ethers5.providers.Web3Provider, cMetadata
     const data = encodeFunctionData({
         abi: prepared.abi,
         functionName: prepared.functionName,
-        args: [prepared.args]
+        args: [...(prepared.args as Array<any>)]
     })
     console.log("data >>> ", data)
     return data;

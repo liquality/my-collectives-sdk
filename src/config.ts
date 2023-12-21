@@ -7,6 +7,8 @@ export class AppConfig  {
   public static RPC_URL: string
   public static PIMLICO_API_KEY: string
   public static PROVIDER: ethers.JsonRpcProvider
+  public static BICONOMY_PAYMASTER: string
+  public static BICONOMY_BUNDLER_API_KEY: string
 
 
   public static getProvider(): ethers.JsonRpcProvider {

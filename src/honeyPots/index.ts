@@ -7,6 +7,8 @@ import {AppConfig} from "../config"
 import { Transaction } from "@biconomy/core-types"
 import {buildUserOperation} from "../libs/userOp"
 import * as ethers5 from 'ethers5';
+import * as pimlicoBundler from "../libs/bundlers/pimlico"
+import * as biconomyBundler from "../libs/bundlers/biconomy"
 
 // Create the HoneyPot module of the sdk
 export class HoneyPot {
@@ -92,8 +94,9 @@ export class HoneyPot {
                 })
             }
 
-            // sende userOps
-            const tx = await buildUserOperation(signer, cMetadata.wallet, cMetadata.nonceKey, "", userOpTx)
+            const userOperation = await buildUserOperation(signer, cMetadata.wallet, cMetadata.nonceKey, "", userOpTx)
+            // send uerOps using pimlico
+            const tx = await pimlicoBundler.send(userOperation, signer)
             
             return {tx}
             

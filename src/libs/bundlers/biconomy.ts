@@ -1,32 +1,31 @@
 
 import {  PaymasterMode } from "@biconomy/paymaster";
-import { IUserOperation } from '../../types/types';
+import { IUserOperation, TransactionResponse } from '../../types/types';
 import {ENTRYPOINT_ADDRESS, CALL_GAS_LIMIT} from "../constants"
 import * as ethers5 from 'ethers5';
 import { IBundler, Bundler } from "@biconomy/bundler";
-import { ChainId } from "@biconomy/core-types";
+import { AppConfig } from "../../config";
+import { rpcCall } from "../utils"; 
 
 
-
-const bundler: IBundler = new Bundler({
-    bundlerUrl: 'https://bundler.biconomy.io/api/v2/80001/nJPK7B3ru.dd7f7861-190d-41bd-af80-6877f74b8f44',     
-    chainId: ChainId.POLYGON_MUMBAI,
-    entryPointAddress: ENTRYPOINT_ADDRESS,
-})
-
-
-export async function estimate(userOperation: IUserOperation) {
+export async function estimate(userOperation: IUserOperation, signer: ethers5.Signer) {
     try {
-      let estimations = await bundler.estimateUserOpGas(userOperation)
-      estimations.callGasLimit = (Number(estimations.callGasLimit) + Number(CALL_GAS_LIMIT)).toString()
-      return estimations
+        const chainId = await signer.getChainId()
+        const bundler =  getBundler(chainId)
+
+        let estimations = await bundler.estimateUserOpGas(userOperation)
+        estimations.callGasLimit = (Number(estimations.callGasLimit) + Number(CALL_GAS_LIMIT)).toString()
+        estimations.verificationGasLimit = (Number(estimations.verificationGasLimit)+ Number(CALL_GAS_LIMIT)).toString()
+        estimations.preVerificationGas = (Number(estimations.preVerificationGas)+ Number(CALL_GAS_LIMIT)).toString()
+
+        return estimations
     } catch (error) {
-      console.log("send error >>>> ", error)
+      console.log("BICONOMY__send error >>>> ", error)
       throw error
     }
-  }
+}
   
-  export async function sponsor(userOperation: IUserOperation) {
+export async function sponsor(userOperation: IUserOperation, signer: ethers5.Signer) {
     try {
       // Sponsorship params
       const partialUserOperation = {
@@ -52,79 +51,86 @@ export async function estimate(userOperation: IUserOperation) {
             }
         }
       }
-  
-      let response = await fetch('https://paymaster.biconomy.io/api/v1/80001/wKaNk3Beg.cc64c1e0-8898-4cb8-aeed-3846cfc6967e', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          id: 1,
-          jsonrpc: "2.0",
-          method: "pm_sponsorUserOperation",
-          params: [
-            partialUserOperation,
-            paymasterServiceData
-          ]
-        }),
-      })
-  
-      const estimations = (await response.json()).result
-        // estimations.callGasLimit = (Number(estimations.callGasLimit) + Number(CALL_GAS_LIMIT)).toString()
+
+      const estimations =rpcCall(AppConfig.BICONOMY_PAYMASTER, "pm_sponsorUserOperation", 
+        [partialUserOperation, paymasterServiceData])
+
       return estimations
 
-  
     } catch (error) {
-      console.log("sponsor error >>>> ", error)
+      console.log("BICONOMY__sponsor error >>>> ", error)
       throw error
     }
-  }
+}
   
-  export async function send(signer: ethers5.Signer, cWallet:string,  userOperation: IUserOperation) {
-    try {
-  
-      // Local interact with entrypoint
-      // const entryContract = new ethers5.Contract(ENTRYPOINT_ADDRESS, ENTRYPOINT_ABI, signer)
-      // const data = entryContract.interface.encodeFunctionData("handleOps", [[userOperation], cWallet])
-      // console.log("data >> ", data)
-      // const tx = await entryContract.handleOps([userOperation], cWallet, {gasLimit: 10000000})
-      // console.log(" !! tx >>>> ", tx)
-  
-      let response = await fetch('https://bundler.biconomy.io/api/v2/80001/nJPK7B3ru.dd7f7861-190d-41bd-af80-6877f74b8f44', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          id: 1697033408,
-          jsonrpc: "2.0",
-          method: "eth_sendUserOperation",
-          params: [
-            userOperation,
-            ENTRYPOINT_ADDRESS,
-            {
-              "simulation_type": "validation"
-            }
-          ]
-        }),
-      })
-  
-      const tx = await response.json()
-  
-       return tx
-       
-    } catch (error) {
-      console.log("send error >>>> ", error)
-      throw error
-    }
-  }
+export async function send(userOperation: IUserOperation, signer: ethers5.Signer) : Promise<TransactionResponse> {
+try {
+    const result = await rpcCall(await getRPC(signer), "eth_sendUserOperation", [
+        userOperation,
+        ENTRYPOINT_ADDRESS,
+        {
+            "simulation_type": "validation"
+        }
+    ])
+    const receipt = await queryReceipt(await getRPC(signer), result.userOpHash)
 
-    export async function getFeeData()  {
-    try {
-      let bundleFeeVal = await bundler.getGasFeeValues()
-      return bundleFeeVal
-    } catch (error) {
-      console.log("getFeeData error >>>> ", error)
-      throw error 
+    if (receipt === null) {
+        return {
+            userOpHash: result.userOpHash, 
+            status: "pending",
+            txHash: ""
+        }
     }
-  }
+    return {
+        txHash: receipt.receipt.transactionHash,
+        userOpHash: receipt.userOpHash,
+        status: (receipt.success)? "success" : "failed",
+    }
+
+} catch (error) {
+    console.log("BICONOMY__send error >>>> ", error)
+    throw error
+}
+}
+
+export async function getFeeData(signer: ethers5.Signer)  {
+    try {
+        const bundler =  getBundler(await signer.getChainId())
+        return await bundler.getGasFeeValues()
+    } catch (error) {
+        console.log("BICONOMY__getFeeData error >>>> ", error)
+        throw error 
+    }
+}
+
+function getBundler(chainId: number):  IBundler {
+    const bundler: IBundler = new Bundler({
+        bundlerUrl: `https://bundler.biconomy.io/api/v2/${chainId}/${AppConfig.BICONOMY_BUNDLER_API_KEY}`,     
+        chainId,
+        entryPointAddress: ENTRYPOINT_ADDRESS,
+    })
+    return bundler
+}
+
+async function getRPC(signer: ethers5.Signer) {
+    return `https://bundler.biconomy.io/api/v2/${await signer.getChainId()}/${AppConfig.BICONOMY_BUNDLER_API_KEY}`
+}
+
+async function queryReceipt(pimlicoEndpoint:string, userOpHash: string) : Promise<any> {
+    try {
+        let receipt = null
+        let retries = 0
+        while (receipt === null && retries < 4) {
+            await new Promise((resolve) => setTimeout(resolve, 1000))
+            const receipt = await rpcCall(pimlicoEndpoint, "eth_getUserOperationReceipt", [userOpHash])
+            console.log(
+                receipt === null ? "Receipt not found..." : `Receipt found!\nTransaction hash: ${JSON.stringify(receipt)}`
+            )
+            retries++
+        }
+        return receipt
+    } catch (error) {
+        console.log("BICONOMY__queryReceipt error >>>> ", error)
+        return null
+    }
+}

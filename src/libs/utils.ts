@@ -21,3 +21,19 @@ export function generateUint192NonceKey() : bigint{
     console.log("randomBigInt >>>> ", randomBigInt % maxUint192)
     return (randomBigInt % maxUint192);
 }
+
+export async function rpcCall(url: string, method: string, params: any[]) {
+    let response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          id: 1,
+          jsonrpc: "2.0",
+          method,
+          params
+        }),
+      })
+      return (await response.json()).result
+}
