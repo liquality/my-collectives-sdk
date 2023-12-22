@@ -16,26 +16,6 @@ export enum SupportedChains {
   GOERLI = 5,
 }
 
-export type Deployment = {
-  collectiveFactory: string;
-  honeyPotFactory: string;
-  entryPoint: string;
-}
-
-export type IUserOperation = {
-    sender: string;
-    nonce: string;
-    initCode: BytesLike;
-    callData: BytesLike;
-    callGasLimit: BigNumberish;
-    verificationGasLimit: BigNumberish;
-    preVerificationGas: BigNumberish;
-    maxFeePerGas: BigNumberish;
-    maxPriorityFeePerGas: BigNumberish;
-    paymasterAndData: BytesLike;
-    signature: BytesLike;
-  }
-
   export type createPoolsParam = {
     tokenContracts: string[];
     honeyPots: string[];
@@ -46,28 +26,6 @@ export type IUserOperation = {
     PIMLICO_API_KEY: string;
     BICONOMY_PAYMASTER: string;
     BICONOMY_BUNDLER_API_KEY: string;
-  }
-
-  export type sendUserOpsRPCParams = {
-    jsonrpc: string, // Json RPC version "2.0"
-    id: number, // id
-    method: string, // RPC method
-    params: [
-      userOperation: IUserOperation, // userOperation
-      entryPoint: string // address
-    ]
-  }
-
-  export type PartialUserOperation = {
-    sender: string;
-    nonce: BigNumberish;
-    initCode: string;
-    callData: string;
-    callGasLimit: string;
-    verificationGasLimit: string;
-    preVerificationGas: string;
-    maxFeePerGas: string;
-    maxPriorityFeePerGas: string;
   }
 
   export type JoinCollectiveParam = {
@@ -95,4 +53,49 @@ export type IUserOperation = {
     userOpHash: string;
     txHash: string;
     status: string;
+  }
+
+
+  // ----------------- Internal -----------------
+
+  export type sendUserOpsRPCParams = {
+    jsonrpc: string, // Json RPC version "2.0"
+    id: number, // id
+    method: string, // RPC method
+    params: [
+      userOperation: IUserOperation, // userOperation
+      entryPoint: string // address
+    ]
+  }
+
+  export type PartialUserOperation = {
+    sender: string;
+    nonce: BigNumberish;
+    initCode: string;
+    callData: string;
+    callGasLimit: string;
+    verificationGasLimit: string;
+    preVerificationGas: string;
+    maxFeePerGas: string;
+    maxPriorityFeePerGas: string;
+  }
+
+export type Deployment = {
+  collectiveFactory: string;
+  honeyPotFactory: string;
+  entryPoint: string;
+}
+
+export type IUserOperation = {
+    sender: string;
+    nonce: string;
+    initCode: BytesLike;
+    callData: BytesLike;
+    callGasLimit: BigNumberish;
+    verificationGasLimit: BigNumberish;
+    preVerificationGas: BigNumberish;
+    maxFeePerGas: BigNumberish;
+    maxPriorityFeePerGas: BigNumberish;
+    paymasterAndData: BytesLike;
+    signature: BytesLike;
   }

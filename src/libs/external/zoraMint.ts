@@ -1,5 +1,5 @@
 import {createMintClient} from "@zoralabs/protocol-sdk";
-import {custom, createWalletClient, encodeFunctionData, createPublicClient} from "viem";
+import {custom, createWalletClient, encodeFunctionData, createPublicClient, hexToBigInt, toHex} from "viem";
 import * as chains from 'viem/chains'
 import * as ethers5 from "ethers5";
 import { CMetadata, MintParam } from "../../types/types";
@@ -25,14 +25,14 @@ export async function callData(caller: ethers5.providers.Web3Provider, cMetadata
         tokenAddress: `0x${mintParam.tokenContract.slice(2)}`,
         tokenId: mintParam.tokenID,
         mintArguments: {
-        // address that will receive the token
-        mintToAddress: `0x${mintParam.recipient.slice(2)}`,
-        // quantity of tokens to mint
-        quantityToMint: mintParam.quantity,
-        // comment to include with the mint
-        mintComment: "minted via MyCollectives",
-        // optional address that will receive a mint referral reward
-        mintReferral: `0x${cMetadata.address.slice(2)}`,
+            // address that will receive the token
+            mintToAddress: `0x${mintParam.recipient.slice(2)}`,
+            // quantity of tokens to mint
+            quantityToMint: mintParam.quantity,
+            // comment to include with the mint
+            mintComment: "minted via MyCollectives",
+            // optional address that will receive a mint referral reward
+            mintReferral: `0x${cMetadata.address.slice(2)}`,
         },
     });
 
@@ -42,16 +42,6 @@ export async function callData(caller: ethers5.providers.Web3Provider, cMetadata
         functionName: prepared.functionName,
         args: [...(prepared.args as Array<any>)]
     })
-    console.log("data >>>> ", data)
-
-    // simulate the transaction and get any validation errors
-    const { request } = await publicClient.simulateContract(prepared);
-    console.log("request zora  >>>> ", request)
-    // submit the transaction to the network
-    const txHash = await walletClient.writeContract(request);
-    console.log("txHash zora >>>> ", txHash)
-    // wait for the transaction to be complete
-    await publicClient.waitForTransactionReceipt({hash: txHash});
     
     return data;
 }

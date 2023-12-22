@@ -6,6 +6,7 @@ export { Collective } from './collectives/index';
 export { Pool } from './pools/index';
 export { HoneyPot } from './honeyPots/index';
 export {setConfig} from './config';
+export {userOpsStatusByHash} from './libs/userOp';
 
 // Types to export
 export {Config} from './types/types';

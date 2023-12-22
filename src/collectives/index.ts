@@ -207,32 +207,10 @@ export class Collective {
     }
     
     private static async getCreatePoolsCallData(cAddress: string, poolParam: createPoolsParam) {
-        let createPoolsABI =  [
-            {
-              "inputs": [
-                {
-                  "internalType": "address[]",
-                  "name": "_tokenContracts",
-                  "type": "address[]"
-                },
-                {
-                  "internalType": "address[]",
-                  "name": "_honeyPots",
-                  "type": "address[]"
-                }
-              ],
-              "name": "createPools",
-              "outputs": [],
-              "stateMutability": "nonpayable",
-              "type": "function"
-            }]
-    let CollectiveFactory = new ethers.Contract(cAddress, createPoolsABI, AppConfig.getProvider())
-    let createPoolCallData = CollectiveFactory.interface.encodeFunctionData("createPools", [poolParam.tokenContracts, poolParam.honeyPots])
-
-  
-        // const createPoolCallData = Collective__factory.createInterface().encodeFunctionData("createPools", [poolParam.tokenContracts, poolParam.honeyPots]);
+        const createPoolCallData = new ethers.Interface(Collective__factory.abi).encodeFunctionData("createPools", [poolParam.tokenContracts, poolParam.honeyPots])
         return createPoolCallData;
     }
+
     private static async getJoinCollectiveCallData(cAddress: string, joinParam: JoinCollectiveParam) {
         const JoinCollectiveCallData = Collective__factory.createInterface().encodeFunctionData("joinCollective", [joinParam.inviteSignature, joinParam.inviteCode]);
         return JoinCollectiveCallData;
@@ -246,6 +224,7 @@ export class Collective {
         const cFactory = new ethers5.Contract(collectiveFactory, CollectiveFactory__factory.abi, runner)
         return cFactory;
     }
+    
     //getRemoveMemberCallData
     private static getRemoveMemberCallData() {
         const removeMemberCallData = new ethers.Interface(Collective__factory.abi).encodeFunctionData("removeMember");

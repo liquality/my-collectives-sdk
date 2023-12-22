@@ -3,7 +3,7 @@ import { ChainId, Transaction} from "@biconomy/core-types"
 import {  PaymasterMode } from "@biconomy/paymaster";
 import { ethers } from 'ethers';
 import { AppConfig } from '../config';
-import { IUserOperation, SupportedChains } from '../types/types';
+import { IUserOperation, SupportedChains, TransactionResponse } from '../types/types';
 import {CWallet__factory} from "../types/typechain-types/factories/contracts/core/CWallet__factory"
 import {ADDRESSES, CALL_GAS_LIMIT, ENTRYPOINT_ABI, USER_OPERATIONS_DEFAULT_SIGNATURE} from "./constants"
 import * as ethers5 from 'ethers5';
@@ -185,21 +185,45 @@ function encodeUserOps(userOperation: IUserOperation) {
  export async function queryReceipt(bundler:string, userOpHash: string) : Promise<any> {
   try {
       let receipt = null
-      let retries = 0
+      let timeOut = 20000 // 20 seconds timeout
       const startTime = Date.now()
-      while (receipt === null && retries < 6) {
-          await new Promise((resolve) => setTimeout(resolve, 1000))
+      while (receipt === null && Date.now() - startTime < timeOut) {
+          await new Promise((resolve) => setTimeout(resolve, 3000))
           receipt = await rpcCall(bundler, "eth_getUserOperationReceipt", [userOpHash])
           console.log("receipt >>>> ", receipt)
           console.log(
               receipt === null ? "Receipt not found..." : `Receipt found!\nTransaction hash: ${JSON.stringify(receipt)}`
           )
-          retries++
       }
-      console.log("queryReceipt time >>>> ", Date.now() - startTime)
       return receipt
   } catch (error) {
       console.log("BUNDLER__queryReceipt error >>>> ", error)
       return null
+  }
+}
+
+export async function userOpsStatusByHash(signer: ethers5.providers.JsonRpcSigner, userOpHash: string) : Promise<TransactionResponse> {
+  try {
+    const bundler = await pimlicoBundler.getRPC(signer)
+    const receipt = await queryReceipt(bundler, userOpHash)
+      if (!receipt) {
+        return {
+            userOpHash, 
+            status: "pending",
+            txHash: ""
+        }
+    }
+    return {
+        txHash: receipt.receipt.transactionHash,
+        userOpHash: receipt.userOpHash,
+        status: (receipt.success)? "success" : "failed",
+    }
+  } catch (error) {
+      console.log("BUNDLER__queryReceipt error >>>> ", error)
+      return {
+        userOpHash, 
+        status: "pending",
+        txHash: ""
+    } 
   }
 }

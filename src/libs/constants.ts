@@ -4,7 +4,7 @@ import { SupportedChains, Deployment } from "../types/types"
 // Deployed addresses
 export const ADDRESSES : { [key in SupportedChains]: Deployment } = {
   [SupportedChains.GOERLI]: {
-    collectiveFactory: '0xCfC03cA81380338703860238d0d6caD552232877',
+    collectiveFactory: '0x88EA52FdBb70Ae15E5f176b9642D7139a1852F40',
     honeyPotFactory: '0xce3795B42857bE44cF8a384c8b50246FB7CaC691',
     entryPoint: '0x5FF137D4b0FDCD49DcA30c7CF57E578a026d2789',
   },

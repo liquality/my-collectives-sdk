@@ -73,7 +73,7 @@ export async function getFeeData(signer: ethers5.Signer)  {
   }
 }
 
- async function getRPC(signer: ethers5.Signer) {
+ export async function getRPC(signer: ethers5.Signer) {
     return `https://api.pimlico.io/v1/${(await signer.provider?.getNetwork())?.name}/rpc?apikey=${AppConfig.PIMLICO_API_KEY}`
  }
 

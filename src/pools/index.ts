@@ -41,10 +41,8 @@ export class Pool {
             // depositTo cwallet by signer if amount > 0
             const cWalletContract = new ethers5.Contract(cMetadata.wallet, CWallet__factory.abi, signer)
             if (mintParam.amount > 0) {
-                console.log("cWallet balance >>>> ", await cWalletContract.balance(await signer.getAddress()))
                 const tx = await cWalletContract.depositTo(await signer.getAddress(), {value: mintParam.amount})
                 await tx.wait()
-                console.log("cWallet balance >>>> ", await cWalletContract.balance(await signer.getAddress()))
             }
             
             const tx = await pimlicoBundler.send(userOperation, signer)
@@ -86,12 +84,12 @@ export class Pool {
     }
 
     // withdraw reward across pools in a collective contract
-    public static async withdrawRewards(caller: ethers5.providers.Web3Provider, cMetadata: CMetadata, pools: string[]) {
+    public static async withdrawRewards(caller: ethers5.providers.Web3Provider, cMetadata: CMetadata, pools: string[], participant: string) {
         try {
             const signer = caller.getSigner();
 
             // get withdrawReward call data for pool
-            const withdrawRewardCallData = this.getPoolWithdrawRewardCallData()
+            const withdrawRewardCallData = this.getPoolWithdrawRewardCallData(participant)
             const userOpTxs : Transaction[] = []
 
             for (const pool of pools) {
@@ -163,16 +161,16 @@ export class Pool {
     }
 
     // getPoolParticipants from pool contract, and fetch the participantData for each participant
-    // public static async getPoolParticipants(caller: ethers5.providers.Web3Provider, pool: string) {
-    //     const poolContract = Pool__factory.connect(pool, AppConfig.getProvider());
-    //     const participants = await poolContract.getParticipants();
-    //     const participantData = []
-    //     for (const participant of participants) {
-    //         const participation = await this.getParticipation(caller, pool, participant);
-    //         participantData.push({participant, participation});
-    //     }
-    //     return participantData;
-    // }
+    public static async getPoolParticipants(caller: ethers5.providers.Web3Provider, pool: string) {
+        const poolContract = Pool__factory.connect(pool, AppConfig.getProvider());
+        const participants = await poolContract.getParticipants();
+        const participantData = []
+        for (const participant of participants) {
+            const participation = await this.getParticipation(pool, participant);
+            participantData.push({participant, participation});
+        }
+        return participantData;
+    }
 
 
     // getParticipation
@@ -207,8 +205,8 @@ export class Pool {
     }
 
     // getPoolWithdrawRewardCallData
-    private static getPoolWithdrawRewardCallData() {
-        const withdrawRewardCallData = new ethers.Interface(Pool__factory.abi).encodeFunctionData("withdrawReward");
+    private static getPoolWithdrawRewardCallData(participant: string) {
+        const withdrawRewardCallData = new ethers.Interface(Pool__factory.abi).encodeFunctionData("withdrawReward",[participant]);
         return withdrawRewardCallData;
     }
 
