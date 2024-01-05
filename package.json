@@ -1,13 +1,12 @@
 {
-  "name": "@koderholic/my-collectives",
-  "version": "1.2.623",
+  "name": "@liquality/my-collectives",
+  "version": "2.0.0",
   "description": "SDK to interact with the MyCollectives contracts",
   "repository": "https://github.com/liquality/my-collectives.git",
   "author": "Liquality Team",
   "license": "MIT",
-  "private": null,
+  "private": false,
   "publishConfig": {
-    "registry": "https://npm.pkg.github.com/",
     "access": "public"
   },
   "main": "./dist/app.js",
@@ -20,16 +19,21 @@
     "build": "yarn clean && tsc",
     "watch": "tsc -w",
     "lint": "TIMING=1 eslint \"**/*.ts*\"",
-    "publish": "yarn build && npm publish"
+    "publish": "yarn build --build --force && npm publish",
+    "link": "yarn build --build --force && npm link"
   },
   "dependencies": {
     "@biconomy/bundler": "^3.1.1",
     "@biconomy/core-types": "^3.1.1",
     "@biconomy/paymaster": "^3.1.1",
+    "@zoralabs/protocol-sdk": "^0.4.3",
     "bignumber.js": "^9.1.2",
     "crypto": "^1.0.1",
     "dotenv": "^16.3.1",
     "ethers": "^6.9.0",
-    "rimraf": "^5.0.5"
+    "ethers5": "npm:ethers@5",
+    "rimraf": "^5.0.5",
+    "typescript": "^5.3.3",
+    "viem": "^1.20.2"
   }
 }
