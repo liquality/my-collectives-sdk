@@ -1,13 +1,12 @@
 {
-  "name": "@koderholic/my-collectives",
-  "version": "1.5.4",
+  "name": "@liquality/my-collectives",
+  "version": "2.0.0",
   "description": "SDK to interact with the MyCollectives contracts",
   "repository": "https://github.com/liquality/my-collectives.git",
   "author": "Liquality Team",
   "license": "MIT",
-  "private": null,
+  "private": false,
   "publishConfig": {
-    "registry": "https://npm.pkg.github.com/",
     "access": "public"
   },
   "main": "./dist/app.js",

@@ -9,6 +9,7 @@ import {buildUserOperation} from "../libs/userOp"
 import * as ethers5 from 'ethers5';
 import * as pimlicoBundler from "../libs/bundlers/pimlico"
 import * as biconomyBundler from "../libs/bundlers/biconomy"
+import { requireSupportedChain } from "../libs/utils";
 
 // Create the HoneyPot module of the sdk
 export class HoneyPot {
@@ -16,6 +17,7 @@ export class HoneyPot {
     // get honeyPot address
     public static async get(caller: ethers5.providers.Web3Provider, salt : ethers.BigNumberish) {
         try {
+            requireSupportedChain((await caller.getNetwork()).chainId);
             const signer = caller.getSigner();
     
             // Get honeyPot factory
@@ -36,6 +38,7 @@ export class HoneyPot {
     // create honeyPot contract
     public static async create(caller: ethers5.providers.Web3Provider, salt : ethers.BigNumberish) {
         try {
+            requireSupportedChain((await caller.getNetwork()).chainId);
             const signer = caller.getSigner();
     
             // Get honeyPot factory
@@ -64,6 +67,7 @@ export class HoneyPot {
     // setTopContributor in honeyPot contract
     public static async setTopContributor(caller: ethers5.providers.Web3Provider, honeyPotAddress: string, topContributor: string) : Promise<TransactionResponse> {
         try {
+            requireSupportedChain((await caller.getNetwork()).chainId);
             const signer = caller.getSigner();
     
             // Get honeyPot contract
@@ -86,6 +90,7 @@ export class HoneyPot {
     // sendReward in honeyPot contract
     public static async sendReward(caller: ethers5.providers.Web3Provider, cMetadata:CMetadata, honeyPots: string[]) {
         try {
+            requireSupportedChain((await caller.getNetwork()).chainId);
             let userOpTx:Transaction[] = []
             const signer = caller.getSigner();
 

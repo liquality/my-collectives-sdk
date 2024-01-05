@@ -25,7 +25,6 @@ export async function buildUserOperation(signer: ethers5.Signer, smartAccount: s
     if (collectiveInitCode) {
       userOperation.initCode = collectiveInitCode
     }
-    console.log("network >>>> ", JSON.stringify((await signer.provider?.getNetwork())))
     // Get fee & gas estimations
     const feeData = await pimlicoBundler.getFeeData(signer)//await signer.getFeeData()//
     userOperation.maxFeePerGas = feeData.maxFeePerGas!.toString()
@@ -56,8 +55,6 @@ export async function buildUserOperation(signer: ethers5.Signer, smartAccount: s
     const userOpsHash = ethers5.utils.keccak256(encoded)
     const signedUserOps = await signUserOps(signer, userOpsHash)
     userOperation.signature = signedUserOps
-
-    console.log("built userOperation >>>> ", userOperation)
 
     return userOperation
 
@@ -135,10 +132,6 @@ async function signUserOps(signer: ethers5.Signer, userOpsHash: string) {
     const unsignedUserOps = ethers5.utils.keccak256(unsignedUserOpsEncoded)
     const signedUserOps = await signer.signMessage(ethers5.utils.arrayify(unsignedUserOps))
 
-    //verify signature
-    console.log("signer >>>> ", ethers5.utils.verifyMessage(unsignedUserOps, signedUserOps))
-    console.log("unsignedUserOps >>>> ", unsignedUserOps)
-
     return signedUserOps
   } catch (error) {
     console.log("signUserOps error >>>> ", error)
@@ -185,12 +178,11 @@ function encodeUserOps(userOperation: IUserOperation) {
  export async function queryReceipt(bundler:string, userOpHash: string) : Promise<any> {
   try {
       let receipt = null
-      let timeOut = 20000 // 20 seconds timeout
+      let timeOut = 120000 // 2 minutes timeout: Max of 5 - 10 minutes
       const startTime = Date.now()
       while (receipt === null && Date.now() - startTime < timeOut) {
-          await new Promise((resolve) => setTimeout(resolve, 3000))
+          await new Promise((resolve) => setTimeout(resolve, 3000)) // Polling interval of 3 - 5 seconds
           receipt = await rpcCall(bundler, "eth_getUserOperationReceipt", [userOpHash])
-          console.log("receipt >>>> ", receipt)
           console.log(
               receipt === null ? "Receipt not found..." : `Receipt found!\nTransaction hash: ${JSON.stringify(receipt)}`
           )

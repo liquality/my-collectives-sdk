@@ -11,12 +11,14 @@ import { Pool__factory } from "../types/typechain-types"
 import * as zoraMint from "../libs/external/zoraMint"
 import * as biconomyBundler from "../libs/bundlers/biconomy"
 import * as pimlicoBundler from "../libs/bundlers/pimlico"
+import { requireSupportedChain } from "../libs/utils";
 
 // Create the pool module of the sdk
 export class Pool {
     // implement mint function to mint on contract
     public static async mint(caller: ethers5.providers.Web3Provider, cMetadata: CMetadata, mintParam: MintParam) {
        try {
+            requireSupportedChain((await caller.getNetwork()).chainId);
             const signer = caller.getSigner();
 
             const tokenMintCallData = await this.getTokenMintCallData(caller, cMetadata, mintParam);
@@ -57,6 +59,7 @@ export class Pool {
     // distributeReward across pools in a collective contract
     public static async distributeRewards(caller: ethers5.providers.Web3Provider, cMetadata: CMetadata, pools: string[]) {
         try {
+            requireSupportedChain((await caller.getNetwork()).chainId);
             const signer = caller.getSigner();
 
             // get distributeReward call data for pool
@@ -72,7 +75,6 @@ export class Pool {
                 })
             }
             const userOperation = await buildUserOperation(signer, cMetadata.wallet, cMetadata.nonceKey, "", userOpTxs)
-            console.log("built userOperation >>>> ", userOperation)
             const tx = await pimlicoBundler.send(userOperation, signer)
 
             return tx
@@ -86,6 +88,7 @@ export class Pool {
     // withdraw reward across pools in a collective contract
     public static async withdrawRewards(caller: ethers5.providers.Web3Provider, cMetadata: CMetadata, pools: string[], participant: string) {
         try {
+            requireSupportedChain((await caller.getNetwork()).chainId);
             const signer = caller.getSigner();
 
             // get withdrawReward call data for pool
@@ -136,7 +139,7 @@ export class Pool {
     public static async getPoolInfo(pool: string) {
         const poolContract = Pool__factory.connect(pool, AppConfig.getProvider());
         const poolInfo = await poolContract.getPoolInfo();
-        return poolInfo;
+        return {tokenContract: poolInfo[0], poolReward: poolInfo[1], rewardDistributed: poolInfo[2], totalContributions: poolInfo[3], isRewardReceived: poolInfo[4], isDistributed: poolInfo[5]};
     }
 
     // Check if pool isActive from pool contract
@@ -177,7 +180,7 @@ export class Pool {
     public static async getParticipation(pool: string, member: string) {
         const poolContract = Pool__factory.connect(pool, AppConfig.getProvider());
         const participation = await poolContract.participantData(member);
-        return participation;
+        return {participant:participation[0], contribution: participation[1], reward: participation[2], rewardAvailable: participation[3]};
     }
 
     // getTokenMintCallData by platform
@@ -187,7 +190,7 @@ export class Pool {
                 return await zoraMint.callData(caller, cMetadata, mintParam);
             case SupportedPlatforms.LOCAL:
                 return MockTokenContract__factory.createInterface().encodeFunctionData("mint", 
-                [mintParam.recipient, mintParam.tokenID]);
+                [mintParam.recipient]);
             default:
                 throw new Error("Platform not supported");
         }

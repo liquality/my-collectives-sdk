@@ -30,13 +30,12 @@ export async function callData(caller: ethers5.providers.Web3Provider, cMetadata
             // quantity of tokens to mint
             quantityToMint: mintParam.quantity,
             // comment to include with the mint
-            mintComment: "minted via MyCollectives",
+            mintComment: "Minted via MyCollectives.tech",
             // optional address that will receive a mint referral reward
             mintReferral: `0x${cMetadata.address.slice(2)}`,
         },
     });
 
-    console.log("prepared >>>> ", prepared)
     const data = encodeFunctionData({
         abi: prepared.abi,
         functionName: prepared.functionName,

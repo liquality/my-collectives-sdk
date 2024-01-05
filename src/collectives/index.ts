@@ -6,7 +6,7 @@ import { ethers } from "ethers";
 import {AppConfig} from "../config"
 import { Transaction } from "@biconomy/core-types"
 import {buildUserOperation} from "../libs/userOp"
-import {generateUint192NonceKey} from "../libs/utils"
+import {generateUint192NonceKey, requireSupportedChain} from "../libs/utils"
 import * as ethers5 from 'ethers5';
 import * as biconomyBundler from "../libs/bundlers/biconomy"
 import * as pimlicoBundler from "../libs/bundlers/pimlico"
@@ -15,6 +15,8 @@ import * as pimlicoBundler from "../libs/bundlers/pimlico"
 export class Collective {
     public static async create(caller: ethers5.providers.Web3Provider, poolParam: createPoolsParam, salt : ethers.BigNumberish) {
         try {
+            requireSupportedChain((await caller.getNetwork()).chainId);
+
             const signer = caller.getSigner();
     
             // Get collective factory
@@ -34,7 +36,7 @@ export class Collective {
 
             
             // get collective && wallet init code
-            const initCode =  cFactory.interface.encodeFunctionData("createCollective", [initiator, OPERATOR, ethers.toBigInt(salt)]);
+            const initCode =  cFactory.interface.encodeFunctionData("createWallet", [initiator, OPERATOR, ethers.toBigInt(salt)]);
 
             // Append cFactory address to collective init code
             // Convert the address to a byte array (Buffer)
@@ -45,11 +47,44 @@ export class Collective {
             const initCodeCat = Buffer.concat([factoryAddressBuffer, initCodeBuffer]);
             // If you need the result as a hex string
             const collectiveInitCode = '0x' + initCodeCat.toString('hex');
+        
+            const nonceKey =  generateUint192NonceKey();
+        
+        
+            const userOperation = await buildUserOperation(signer, cWallet, nonceKey, collectiveInitCode, [])
+            var tx = await pimlicoBundler.send(userOperation, signer)
+            console.log("Collective Wallet Created >>>> ", tx)
+            var tx2
+
+            if (tx.status == "success") {
+                console.log("Deploying collective >>>> ")
+                tx2 = await this.createColletive(signer, cFactory, nonceKey, cAddress, cWallet, poolParam, salt);
+            }
+
+            return {cAddress, cWallet, nonce:nonceKey, tx2}; 
+        } catch (error) {
+            console.log("error createWallet >>>> ", error)
+            throw error;
             
-            // get createPool call data
+        }
+    
+    }
+
+    private static async createColletive(signer: ethers5.providers.JsonRpcSigner, cFactory: ethers5.ethers.Contract, nonceKey: bigint, cAddress: string, cWallet: string, poolParam: createPoolsParam, salt : ethers.BigNumberish) {
+        try {
+            const initiator = await signer.getAddress();
+
+            //get createCollective call data
+            const createCollectiveCallData = await this.getCreateCollectiveCallData(initiator, OPERATOR, ethers.toBigInt(salt));
             const createPoolsCallData = await this.getCreatePoolsCallData(cAddress, poolParam);
+
             // Create user operation Tx
             let userOpTx:Transaction[] = [
+                {
+                    to: cFactory.address,
+                    data: createCollectiveCallData,
+                    value: 0,
+                },
                 {
                     to: ethers5.utils.getAddress(cAddress),
                     data: createPoolsCallData,
@@ -57,14 +92,10 @@ export class Collective {
                 }
             ]
         
-            const nonceKey =  generateUint192NonceKey();
-        
-        
-            const userOperation = await buildUserOperation(signer, cWallet, nonceKey, collectiveInitCode, userOpTx)
-            console.log("built userOperation >>>> ", userOperation)
+            const userOperation = await buildUserOperation(signer, cWallet, nonceKey, "", userOpTx)
             const tx = await pimlicoBundler.send(userOperation, signer)
 
-            return {cAddress, cWallet, nonce:nonceKey, tx}; 
+            return tx;
         } catch (error) {
             console.log("error createCollective >>>> ", error)
             throw error;
@@ -76,6 +107,7 @@ export class Collective {
     // Check if member of collective
     public static async isMember(caller: ethers5.providers.Web3Provider, cMetadata: CMetadata, member: string) {
         try {
+            requireSupportedChain((await caller.getNetwork()).chainId);
             const signer = caller.getSigner();
             const collective = Collective__factory.connect(cMetadata.address, AppConfig.getProvider());
             const isMember = await collective.members(member);
@@ -92,6 +124,7 @@ export class Collective {
     // join a collective
     public static async join(caller: ethers5.providers.Web3Provider, cMetadata: CMetadata, JoinParam:JoinCollectiveParam) {
         try {
+            requireSupportedChain((await caller.getNetwork()).chainId);
             const signer = caller.getSigner();
             const joinCollectivesCallData = await this.getJoinCollectiveCallData(cMetadata.address, JoinParam);
             console.log("joinCollectivesCallData >>>> ", joinCollectivesCallData)
@@ -118,6 +151,7 @@ export class Collective {
     // leave a collective
     public static async leave(caller: ethers5.providers.Web3Provider, cMetadata: CMetadata) {
         try {
+            requireSupportedChain((await caller.getNetwork()).chainId);
             const signer = caller.getSigner();
             const leaveCollectiveCallData = await this.getLeaveCollectiveCallData();
             console.log("leaveCollectiveCallData >>>> ", leaveCollectiveCallData)
@@ -144,6 +178,7 @@ export class Collective {
     // removeMember from collective
     public static async removeMember(caller: ethers5.providers.Web3Provider, cMetadata: CMetadata, member: string) {
         try {
+            requireSupportedChain((await caller.getNetwork()).chainId);
             const signer = caller.getSigner();
             const removeMemberCallData = this.getRemoveMemberCallData();
             // Create user operation Tx
@@ -169,6 +204,7 @@ export class Collective {
     // create a pool
     public static async createPools(caller: ethers5.providers.Web3Provider, cMetadata: CMetadata, poolParam: createPoolsParam) {
         try {
+            requireSupportedChain((await caller.getNetwork()).chainId);
             const signer = caller.getSigner();
             const createPoolsCallData = await this.getCreatePoolsCallData(cMetadata.address, poolParam);
             // Create user operation Tx
@@ -194,6 +230,7 @@ export class Collective {
     // Get pool
     public static async getPoolByHoneyPot(caller: ethers5.providers.Web3Provider, cMetadata: CMetadata, honeyPot: string) {
         try {
+            requireSupportedChain((await caller.getNetwork()).chainId);
             const signer = caller.getSigner();
             const collective = Collective__factory.connect(cMetadata.address, AppConfig.getProvider());
             const pools = await collective.pools(honeyPot);
@@ -204,6 +241,12 @@ export class Collective {
             throw error;
             
         }
+    }
+
+    // getCreatCollectiveCallData
+    private static async getCreateCollectiveCallData(initiator: string, operator: string, salt: ethers.BigNumberish) {
+        const createCollectiveCallData = CollectiveFactory__factory.createInterface().encodeFunctionData("createCollective", [initiator, operator, ethers.toBigInt(salt)]);
+        return createCollectiveCallData;
     }
     
     private static async getCreatePoolsCallData(cAddress: string, poolParam: createPoolsParam) {
@@ -224,7 +267,7 @@ export class Collective {
         const cFactory = new ethers5.Contract(collectiveFactory, CollectiveFactory__factory.abi, runner)
         return cFactory;
     }
-    
+
     //getRemoveMemberCallData
     private static getRemoveMemberCallData() {
         const removeMemberCallData = new ethers.Interface(Collective__factory.abi).encodeFunctionData("removeMember");

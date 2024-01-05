@@ -1,12 +1,12 @@
 import { ethers } from 'ethers';
 import { BigNumber } from 'bignumber.js';
+import { ADDRESSES } from './constants';
 
 export function toBigInt(randomBytes: Uint8Array): bigint {
     let hexString = '0x';
     randomBytes.forEach(byte => {
         hexString += byte.toString(16).padStart(2, '0');
     });
-    console.log("hexString >>>> ", hexString);
 
     const bigintVal = BigInt(hexString);
     const maxUint192 = BigInt(2) ** BigInt(192);
@@ -18,7 +18,6 @@ export function toBigInt(randomBytes: Uint8Array): bigint {
 export function generateUint192NonceKey() : bigint{
     const maxUint192 = BigInt(2) ** BigInt(192) - BigInt(1);
     const randomBigInt = BigInt(Math.floor(Math.random() * Number.MAX_SAFE_INTEGER));
-    console.log("randomBigInt >>>> ", randomBigInt % maxUint192)
     return (randomBigInt % maxUint192);
 }
 
@@ -40,7 +39,6 @@ export async function rpcCall(url: string, method: string, params: any[]) {
       const jsonResponse = await response.json()
 
       if (jsonResponse.error) {
-        console.log("jsonResponse.error >>>> ", jsonResponse.error)
         throw new Error(jsonResponse.error.message)
       }
 
@@ -48,5 +46,12 @@ export async function rpcCall(url: string, method: string, params: any[]) {
 
     } catch (error) {
         throw error
+    }
+}
+
+// Check if the network is not supported and throw an error
+export function requireSupportedChain(chainId: number) {
+    if (!Object.keys(ADDRESSES).includes(chainId.toString())) {
+        throw new Error("Unsupported chain")
     }
 }
