@@ -70,11 +70,7 @@ export class HoneyPot {
         try {
             // Create an ethers wallet from the private key
             const wallet = new ethers.Wallet(privateKey);
-
-            // Get honeyPot contract
             const honeyPot = new HoneyPot__factory(wallet).attach(honeyPotAddress);
-
-            // Call setTopContributor and sign the transaction
             const tx = await honeyPot.setTopContributor(topContributor).connect(wallet).wait();
 
             return {
