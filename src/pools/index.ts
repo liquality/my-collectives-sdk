@@ -58,10 +58,10 @@ export class Pool {
     }
 
     // distributeReward across pools in a collective contract
-    public static async distributeRewards(caller: ethers5.providers.Web3Provider, cMetadata: CMetadata, pools: string[]) {
+    public static async distributeRewards(privateKey: string, cMetadata: CMetadata, pools: string[]) {
         try {
-            requireSupportedChain((await caller.getNetwork()).chainId);
-            const signer = caller.getSigner();
+            const signer = new ethers5.Wallet(privateKey);
+            requireSupportedChain((await signer.provider.getNetwork()).chainId);
 
             // get distributeReward call data for pool
             const distributeRewardCallData = this.getPoolDistributeRewardCallData()

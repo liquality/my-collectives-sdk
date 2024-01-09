@@ -65,10 +65,11 @@ export class HoneyPot {
     }
 
     // setTopContributor in honeyPot contract
-    public static async setTopContributor(caller: ethers5.providers.Web3Provider, honeyPotAddress: string, topContributor: string) : Promise<TransactionResponse> {
+    public static async setTopContributor(privateKey: string, honeyPotAddress: string, topContributor: string): Promise<TransactionResponse> {
         try {
-            requireSupportedChain((await caller.getNetwork()).chainId);
-            const signer = caller.getSigner();
+            // Create an ethers wallet from the private key
+            const signer = new ethers5.Wallet(privateKey);
+            requireSupportedChain((await signer.provider.getNetwork()).chainId);
     
             // Get honeyPot contract
             const honeyPot = new ethers5.Contract(honeyPotAddress, HoneyPot__factory.abi, signer)
@@ -88,11 +89,11 @@ export class HoneyPot {
     }
 
     // sendReward in honeyPot contract
-    public static async sendReward(caller: ethers5.providers.Web3Provider, cMetadata:CMetadata, honeyPots: string[]) {
+    public static async sendReward(privateKey: string, cMetadata:CMetadata, honeyPots: string[]) {
         try {
-            requireSupportedChain((await caller.getNetwork()).chainId);
+            const signer = new ethers5.Wallet(privateKey);
+            requireSupportedChain((await signer.provider.getNetwork()).chainId);
             let userOpTx:Transaction[] = []
-            const signer = caller.getSigner();
 
             const sendRewardCallData = this.getSendRewardCallData();
 
