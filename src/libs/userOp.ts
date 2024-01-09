@@ -1,24 +1,29 @@
 import {BytesLike} from 'ethers'
-import { ChainId, Transaction} from "@biconomy/core-types"
-import {  PaymasterMode } from "@biconomy/paymaster";
+import { Transaction} from "@biconomy/core-types"
 import { ethers } from 'ethers';
 import { AppConfig } from '../config';
-import { IUserOperation } from '../types/types';
+import { IUserOperation, SupportedChains, TransactionResponse } from '../types/types';
 import {CWallet__factory} from "../types/typechain-types/factories/contracts/core/CWallet__factory"
-import {ENTRYPOINT_ADDRESS, ENTRYPOINT_ABI, USER_OPERATIONS_DEFAULT_SIGNATURE} from "./constants"
-import { BigNumber} from 'bignumber.js';
+import {ADDRESSES, CALL_GAS_LIMIT, ENTRYPOINT_ABI, USER_OPERATIONS_DEFAULT_SIGNATURE} from "./constants"
+import * as ethers5 from 'ethers5';
 import { AddressLike, BigNumberish } from 'ethers/lib.esm';
-import { IBundler, Bundler } from '@biconomy/bundler'
+import { rpcCall } from './utils';
+import { AAProviderFactory } from './AAProviders/providerFactory';
 
 
-const bundler: IBundler = new Bundler({
-    bundlerUrl: 'https://bundler.biconomy.io/api/v2/80001/nJPK7B3ru.dd7f7861-190d-41bd-af80-6877f74b8f44',     
-    chainId: ChainId.POLYGON_MUMBAI,
-    entryPointAddress: ENTRYPOINT_ADDRESS,
-})
+export async function buildAndSendUserOperation(signer: ethers5.Signer, smartAccount: string, nonceKey: bigint, collectiveInitCode: BytesLike, transactions: Transaction[]) : Promise<TransactionResponse> {
+  try {
+    const userOperation = await buildUserOperation(signer, smartAccount, nonceKey, collectiveInitCode, transactions)
+    const userOpsProvider = AAProviderFactory.get(signer)
+    const receipt = await userOpsProvider.send(userOperation, signer)
+    return receipt
+  } catch (error) {
+    console.log("USEROPS__buildAndSendUserOperation error >>>> ", error)
+    throw error
+  }
+}
 
-
-export async function buildUserOperation(signer: ethers.JsonRpcSigner, smartAccount: string, nonceKey: bigint, collectiveInitCode: BytesLike, transactions: Transaction[]) {
+export async function buildUserOperation(signer: ethers5.Signer, smartAccount: string, nonceKey: bigint, collectiveInitCode: BytesLike, transactions: Transaction[]) : Promise<IUserOperation>{
   try {
     // Get calldata
     const executeCallData = await getExecuteCallData(transactions)
@@ -29,25 +34,23 @@ export async function buildUserOperation(signer: ethers.JsonRpcSigner, smartAcco
     if (collectiveInitCode) {
       userOperation.initCode = collectiveInitCode
     }
-
     // Get fee & gas estimations
-    const feeData = await getFeeData()
+    const userOpsProvider = AAProviderFactory.get(signer)
+    const feeData = await userOpsProvider.getFeeData(signer)//await signer.getFeeData()//
     userOperation.maxFeePerGas = feeData.maxFeePerGas!.toString()
     userOperation.maxPriorityFeePerGas = feeData.maxPriorityFeePerGas!.toString()
 
     let estimationOps = {...userOperation}
     estimationOps.signature = USER_OPERATIONS_DEFAULT_SIGNATURE
 
-    let estimations = await estimateWithBiconomy(estimationOps)
-    userOperation.callGasLimit = estimations.callGasLimit.toString()
-    userOperation.preVerificationGas = estimations.preVerificationGas.toString()
-    userOperation.verificationGasLimit = estimations.verificationGasLimit.toString()
+    // let estimations = await userOpsProvider.estimate(estimationOps, signer)
+    // userOperation.callGasLimit = estimations.callGasLimit.toString()//7000264//
+    // userOperation.preVerificationGas = estimations.preVerificationGas.toString()//800808//
+    // userOperation.verificationGasLimit = estimations.verificationGasLimit.toString() //600401 //
     
-
     // Get gas estimation for user oeperation
-    const paymasterAndDataResponse = await sponsorWithBiconomy(userOperation)
+    const paymasterAndDataResponse = await userOpsProvider.sponsor(userOperation, signer)
     userOperation.paymasterAndData = paymasterAndDataResponse.paymasterAndData
-    console.log("estimations >>>> ", paymasterAndDataResponse)
     if (
       paymasterAndDataResponse.callGasLimit &&
       paymasterAndDataResponse.verificationGasLimit &&
@@ -58,186 +61,15 @@ export async function buildUserOperation(signer: ethers.JsonRpcSigner, smartAcco
       userOperation.preVerificationGas = paymasterAndDataResponse.preVerificationGas.toString()
     }
 
-
-    // let sponsorRes = await sponsorWithBiconomy(estimationOps)
-    // console.log("sponsorRes >>>> ", sponsorRes)
-    // userOperation.paymasterAndData = sponsorRes.paymasterAndData
-    console.log("userOperation >>>> ", userOperation)
-
     let encoded = encodeUserOps(userOperation) 
-    const userOpsHash = ethers.keccak256(encoded)
+    const userOpsHash = ethers5.utils.keccak256(encoded)
     const signedUserOps = await signUserOps(signer, userOpsHash)
-    console.log("actual signer >>>> ", signer.address)
     userOperation.signature = signedUserOps
-
-    //verify signature
-    console.log("signer >>>> ", ethers.verifyMessage(userOpsHash, signedUserOps))
 
     return userOperation
 
   } catch (error) {
-    console.log("error buildUserOperation >>>> ", error)
-  }
-}
-
-export async function estimateWithPimlico(userOperation: IUserOperation) {
-  try {
-    const pimlicoEndpoint = `https://api.pimlico.io/v1/mumbai/rpc?apikey=${AppConfig.PIMLICO_API_KEY}`
-    const pimlicoProvider = new ethers.JsonRpcProvider(pimlicoEndpoint)
-
-    userOperation.nonce = userOperation.nonce
-    const estimationResult = await pimlicoProvider.send("eth_estimateUserOperationGas", [userOperation, ENTRYPOINT_ADDRESS])
-    console.log(`UserOperation estimated. Result: ${estimationResult}`)
-
-    return estimationResult
-  } catch (error) {
-    console.log("estimateWithPimlico error >>>> ", error)
-    throw error
-  }
-}
-export async function sponsorWithPimlico(userOperation: IUserOperation) {
-
-  try {
-    const pimlicoEndpoint = `https://api.pimlico.io/v1/mumbai/rpc?apikey=${AppConfig.PIMLICO_API_KEY}`
-    const pimlicoProvider = new ethers.JsonRpcProvider(pimlicoEndpoint)
-
-    let estimations = await estimateWithPimlico(userOperation)
-
-    const sponsorRes = await pimlicoProvider.send("pm_sponsorUserOperation", [userOperation, ENTRYPOINT_ADDRESS])
-    console.log(`sponsorRes >> : ${sponsorRes}`)
-    estimations.paymasterAndData = sponsorRes.paymasterAndData
-
-    return estimations
-
-  } catch (error) {
-    console.log("sendWithBiconomy error >>>> ", error)
-    // throw error
-  }
-}
-
-export async function sendWithPimlico(userOperation: IUserOperation) {
-  try {
-    const pimlicoEndpoint = `https://api.pimlico.io/v1/mumbai/rpc?apikey=${AppConfig.PIMLICO_API_KEY}`
-    const pimlicoProvider = new ethers.JsonRpcProvider(pimlicoEndpoint)
-
-    const userOperationHash = await pimlicoProvider.send("eth_sendUserOperation", {userOperation, ENTRYPOINT_ADDRESS})
-    console.log(`UserOperation submitted. Hash: ${userOperationHash}`)
-
-    console.log("Querying for receipts...")
-    let receipt = null
-    while (receipt === null) {
-        await new Promise((resolve) => setTimeout(resolve, 1000))
-        receipt = await pimlicoProvider.send("eth_getUserOperationReceipt", [userOperationHash])
-        console.log(
-            receipt === null ? "Receipt not found..." : `Receipt found!\nTransaction hash: ${receipt.receipt.transactionHash}`
-        )
-    }
-    return receipt.receipt
-  } catch (error) {
-    console.log("sendWithPimlico error >>>> ", error)
-    throw error
-  }
-}
-
-async function estimateWithBiconomy(userOperation: IUserOperation) {
-  try {
-    const estimations = await bundler.estimateUserOpGas(userOperation)
-    return estimations
-  } catch (error) {
-    console.log("sendWithBiconomy error >>>> ", error)
-    throw error
-  }
-}
-
-export async function sponsorWithBiconomy(userOperation: IUserOperation) {
-  try {
-    // Sponsorship params
-    const partialUserOperation = {
-      sender: userOperation.sender,
-      nonce: userOperation.nonce,
-      initCode: userOperation.initCode,
-      callData: userOperation.callData,
-      callGasLimit: userOperation.callGasLimit,
-      verificationGasLimit: userOperation.verificationGasLimit,
-      preVerificationGas: userOperation.preVerificationGas,
-      maxFeePerGas: userOperation.maxFeePerGas,
-      maxPriorityFeePerGas: userOperation.maxPriorityFeePerGas,
-    }
-    const paymasterServiceData = {
-      mode: PaymasterMode.SPONSORED,
-      calculateGasLimits: true,
-      expiryDuration: 300, //5mins
-      sponsorshipInfo: {
-          webhookData: {},
-          smartAccountInfo: {
-              name: "BICONOMY",
-              version: "1.0.0"
-          }
-      }
-    }
-
-    let response = await fetch('https://paymaster.biconomy.io/api/v1/80001/wKaNk3Beg.cc64c1e0-8898-4cb8-aeed-3846cfc6967e', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        id: 1,
-        jsonrpc: "2.0",
-        method: "pm_sponsorUserOperation",
-        params: [
-          partialUserOperation,
-          paymasterServiceData
-        ]
-      }),
-    })
-
-    const estimations = await response.json()
-    return estimations.result
-
-  } catch (error) {
-    console.log("sponsorWithBiconomy error >>>> ", error)
-    throw error
-  }
-}
-
-export async function sendWithBiconomy(userOperation: IUserOperation) {
-  try {
-    // const useropResponse = await bundler.sendUserOp(userOperation, "validation_and_execution")
-    // const tx = await useropResponse.waitForTxHash()
-    
-
-    let response = await fetch('https://bundler.biconomy.io/api/v2/80001/nJPK7B3ru.dd7f7861-190d-41bd-af80-6877f74b8f44', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        id: 1697033408,
-        jsonrpc: "2.0",
-        method: "eth_sendUserOperation",
-        params: [
-          userOperation,
-          ENTRYPOINT_ADDRESS,
-          {
-            "simulation_type": "validation_and_execution"
-          }
-        ]
-      }),
-    })
-
-    const tx = await response.json()
-
-    const userOpStatus = await bundler.getUserOpStatus(tx.result)
-     return {
-      transactionHash: userOpStatus.transactionHash,
-      userOpHash: tx.result,
-      userOperationReceipt: userOpStatus.userOperationReceipt,
-      state: userOpStatus.state
-     }
-     
-  } catch (error) {
-    console.log("sendWithBiconomy error >>>> ", error)
+    console.log("USEROPS__buildUserOperation error >>>> ", error)
     throw error
   }
 }
@@ -245,13 +77,14 @@ export async function sendWithBiconomy(userOperation: IUserOperation) {
 // Get nonce
 async function getNonce(smartAccount: string , nonceKey: bigint) {
   try {
-    const entryPoint = new ethers.Contract(ENTRYPOINT_ADDRESS, ENTRYPOINT_ABI, AppConfig.PROVIDER)
+    const entryPointAddress = ADDRESSES[Number((await AppConfig.PROVIDER.getNetwork()).chainId) as SupportedChains].entryPoint
+
+    const entryPoint = new ethers5.Contract(entryPointAddress, ENTRYPOINT_ABI, AppConfig.PROVIDER)
     const nonce = await entryPoint.getNonce(smartAccount, nonceKey)
-    const nonceHex = ethers.toBeHex(nonce, 32)
-    console.log("!!!! came to getNonce >> ", nonceHex)
-    return nonceHex
+    return nonce.toHexString()
+
   } catch (error) {
-    console.log("getNonce error >>>> ", error)
+    console.log("USEROPS__getNonce error >>>> ", error)
     throw error 
   }
 }
@@ -261,7 +94,7 @@ async function getExecuteCallData(transactions: Transaction[]) {
     let executeCallData: BytesLike
     if (transactions.length == 1) {
       executeCallData = CWallet__factory.createInterface().encodeFunctionData("execute", 
-      [transactions[0].to as AddressLike, transactions[0].value as BigNumberish, transactions[0].data as BytesLike ])
+      [transactions[0].to, transactions[0].value as BigNumberish, transactions[0].data as BytesLike ])
     } else {
       let dests:AddressLike[] = []
       let values:BigNumberish[] = []
@@ -276,7 +109,7 @@ async function getExecuteCallData(transactions: Transaction[]) {
     }
     return executeCallData;
   } catch (error) {
-    console.log("getExecuteCallData error >>>> ", error)
+    console.log("USEROPS__getExecuteCallData error >>>> ", error)
     throw error 
   }
 }
@@ -288,9 +121,9 @@ async function InitializeUserOperation(smartAccount: string, nonce: string, exec
     nonce: nonce,
     initCode: '0x',
     callData: executeCallData,
-    callGasLimit: "0",
-    preVerificationGas: "0",
-    verificationGasLimit: "0",
+    callGasLimit: CALL_GAS_LIMIT,
+    preVerificationGas: CALL_GAS_LIMIT,
+    verificationGasLimit: CALL_GAS_LIMIT,
     maxFeePerGas: "0",
     maxPriorityFeePerGas: "0",
     signature: "0x",
@@ -300,11 +133,13 @@ async function InitializeUserOperation(smartAccount: string, nonce: string, exec
   return userOperation
 }
 
-async function signUserOps(signer: ethers.JsonRpcSigner, userOpsHash: string) {
+async function signUserOps(signer: ethers5.Signer, userOpsHash: string) {
   try {
-    const unsignedUserOpsEncoded = ethers.AbiCoder.defaultAbiCoder().encode(["bytes32", "address", "uint256"], [userOpsHash, ENTRYPOINT_ADDRESS, (await AppConfig.PROVIDER.getNetwork()).chainId ])
-    const unsignedUserOps = ethers.keccak256(unsignedUserOpsEncoded)
-    const signedUserOps = await signer.signMessage(ethers.toUtf8Bytes(unsignedUserOps))
+    const entryPoint = ADDRESSES[await signer.getChainId() as SupportedChains].entryPoint
+    const unsignedUserOpsEncoded = ethers5.utils.defaultAbiCoder.encode(["bytes32", "address", "uint256"], [userOpsHash, entryPoint, (await AppConfig.PROVIDER.getNetwork()).chainId ])
+    const unsignedUserOps = ethers5.utils.keccak256(unsignedUserOpsEncoded)
+    const signedUserOps = await signer.signMessage(ethers5.utils.arrayify(unsignedUserOps))
+
     return signedUserOps
   } catch (error) {
     console.log("signUserOps error >>>> ", error)
@@ -315,8 +150,7 @@ async function signUserOps(signer: ethers.JsonRpcSigner, userOpsHash: string) {
 
 function encodeUserOps(userOperation: IUserOperation) {
   try {
-    
-    const encoded = ethers.AbiCoder.defaultAbiCoder().encode([
+    const encoded = ethers5.utils.defaultAbiCoder.encode([
       "address",
       "uint256",
       "bytes32",
@@ -330,14 +164,14 @@ function encodeUserOps(userOperation: IUserOperation) {
     ], [
       userOperation.sender,
       userOperation.nonce,
-      ethers.keccak256(userOperation.initCode),
-      ethers.keccak256(userOperation.callData),
+      ethers5.utils.keccak256(userOperation.initCode),
+      ethers5.utils.keccak256(userOperation.callData),
       userOperation.callGasLimit,
       userOperation.verificationGasLimit,
       userOperation.preVerificationGas,
       userOperation.maxFeePerGas,
       userOperation.maxPriorityFeePerGas,
-      ethers.keccak256(userOperation.paymasterAndData)
+      ethers5.utils.keccak256(userOperation.paymasterAndData)
     ])
     return encoded
   } catch (error) {
@@ -346,12 +180,50 @@ function encodeUserOps(userOperation: IUserOperation) {
   }
 }
 
-async function getFeeData()  {
+
+ // Query user operation receipt
+ export async function queryReceipt(bundler:string, userOpHash: string) : Promise<any> {
   try {
-    let bundleFeeVal = await bundler.getGasFeeValues()
-    return bundleFeeVal
+      let receipt = null
+      let timeOut = 300000 // 5 minutes timeout: Max of 5 - 10 minutes
+      const startTime = Date.now()
+      while (receipt === null && Date.now() - startTime < timeOut) {
+          await new Promise((resolve) => setTimeout(resolve, 3000)) // Polling interval of 3 - 5 seconds
+          receipt = await rpcCall(bundler, "eth_getUserOperationReceipt", [userOpHash])
+          console.log(
+              receipt === null ? "Receipt not found..." : `Receipt found!\nTransaction hash: ${JSON.stringify(receipt)}`
+          )
+      }
+      return receipt
   } catch (error) {
-    console.log("getFeeData error >>>> ", error)
-    throw error 
+      console.log("BUNDLER__queryReceipt error >>>> ", error)
+      return null
+  }
+}
+
+export async function userOpsStatusByHash(signer: ethers5.providers.JsonRpcSigner, userOpHash: string) : Promise<TransactionResponse> {
+  try {
+    const pimlicoBundler = AAProviderFactory.get(signer)
+    const bundler = await pimlicoBundler.getRPC(signer)
+    const receipt = await queryReceipt(bundler, userOpHash)
+      if (!receipt) {
+        return {
+            userOpHash, 
+            status: "pending",
+            txHash: ""
+        }
+    }
+    return {
+        txHash: receipt.receipt.transactionHash,
+        userOpHash: receipt.userOpHash,
+        status: (receipt.success)? "success" : "failed",
+    }
+  } catch (error) {
+      console.log("BUNDLER__queryReceipt error >>>> ", error)
+      return {
+        userOpHash, 
+        status: "pending",
+        txHash: ""
+    } 
   }
 }
