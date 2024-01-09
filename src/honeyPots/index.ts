@@ -5,10 +5,10 @@ import {CMetadata, SupportedChains, TransactionResponse} from "../types/types"
 import { ethers } from "ethers";
 import {AppConfig} from "../config"
 import { Transaction } from "@biconomy/core-types"
-import {buildUserOperation} from "../libs/userOp"
+import {buildAndSendUserOperation} from "../libs/userOp"
 import * as ethers5 from 'ethers5';
-import * as pimlicoBundler from "../libs/bundlers/pimlico"
-import * as biconomyBundler from "../libs/bundlers/biconomy"
+import * as pimlicoBundler from "../libs/AAProviders/pimlicoProvider"
+import * as biconomyBundler from "../libs/AAProviders/biconomyProvider"
 import { requireSupportedChain } from "../libs/utils";
 
 // Create the HoneyPot module of the sdk
@@ -105,8 +105,7 @@ export class HoneyPot {
                 })
             }
 
-            const userOperation = await buildUserOperation(signer, cMetadata.wallet, cMetadata.nonceKey, "", userOpTx)
-            const tx = await pimlicoBundler.send(userOperation, signer)
+            const tx = await buildAndSendUserOperation(signer, cMetadata.wallet, cMetadata.nonceKey, "", userOpTx)
             
             return tx
             
@@ -121,7 +120,7 @@ export class HoneyPot {
         try {
     
             // Get honeyPot contract
-            const honeyPot = HoneyPot__factory.connect(honeyPotAddress, AppConfig.getProvider())
+            const honeyPot = new ethers5.Contract(honeyPotAddress, HoneyPot__factory.abi, AppConfig.PROVIDER)
             const topContributor = await honeyPot.getTopContributor();
             
             return topContributor

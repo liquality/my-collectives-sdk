@@ -1,6 +1,5 @@
 import {BytesLike} from 'ethers'
-import { ChainId, Transaction} from "@biconomy/core-types"
-import {  PaymasterMode } from "@biconomy/paymaster";
+import { Transaction} from "@biconomy/core-types"
 import { ethers } from 'ethers';
 import { AppConfig } from '../config';
 import { IUserOperation, SupportedChains, TransactionResponse } from '../types/types';
@@ -8,11 +7,21 @@ import {CWallet__factory} from "../types/typechain-types/factories/contracts/cor
 import {ADDRESSES, CALL_GAS_LIMIT, ENTRYPOINT_ABI, USER_OPERATIONS_DEFAULT_SIGNATURE} from "./constants"
 import * as ethers5 from 'ethers5';
 import { AddressLike, BigNumberish } from 'ethers/lib.esm';
-import * as biconomyBundler from "./bundlers/biconomy"
-import * as pimlicoBundler from "./bundlers/pimlico"
 import { rpcCall } from './utils';
+import { AAProviderFactory } from './AAProviders/providerFactory';
 
 
+export async function buildAndSendUserOperation(signer: ethers5.Signer, smartAccount: string, nonceKey: bigint, collectiveInitCode: BytesLike, transactions: Transaction[]) : Promise<TransactionResponse> {
+  try {
+    const userOperation = await buildUserOperation(signer, smartAccount, nonceKey, collectiveInitCode, transactions)
+    const userOpsProvider = AAProviderFactory.get(signer)
+    const receipt = await userOpsProvider.send(userOperation, signer)
+    return receipt
+  } catch (error) {
+    console.log("USEROPS__buildAndSendUserOperation error >>>> ", error)
+    throw error
+  }
+}
 
 export async function buildUserOperation(signer: ethers5.Signer, smartAccount: string, nonceKey: bigint, collectiveInitCode: BytesLike, transactions: Transaction[]) : Promise<IUserOperation>{
   try {
@@ -26,30 +35,31 @@ export async function buildUserOperation(signer: ethers5.Signer, smartAccount: s
       userOperation.initCode = collectiveInitCode
     }
     // Get fee & gas estimations
-    const feeData = await pimlicoBundler.getFeeData(signer)//await signer.getFeeData()//
+    const userOpsProvider = AAProviderFactory.get(signer)
+    const feeData = await userOpsProvider.getFeeData(signer)//await signer.getFeeData()//
     userOperation.maxFeePerGas = feeData.maxFeePerGas!.toString()
     userOperation.maxPriorityFeePerGas = feeData.maxPriorityFeePerGas!.toString()
 
     let estimationOps = {...userOperation}
     estimationOps.signature = USER_OPERATIONS_DEFAULT_SIGNATURE
 
-    // let estimations = await pimlicoBundler.estimate(estimationOps, signer)
+    // let estimations = await userOpsProvider.estimate(estimationOps, signer)
     // userOperation.callGasLimit = estimations.callGasLimit.toString()//7000264//
     // userOperation.preVerificationGas = estimations.preVerificationGas.toString()//800808//
     // userOperation.verificationGasLimit = estimations.verificationGasLimit.toString() //600401 //
     
     // Get gas estimation for user oeperation
-    const paymasterAndDataResponse = await pimlicoBundler.sponsor(userOperation, signer)
+    const paymasterAndDataResponse = await userOpsProvider.sponsor(userOperation, signer)
     userOperation.paymasterAndData = paymasterAndDataResponse.paymasterAndData
-    // if (
-    //   paymasterAndDataResponse.callGasLimit &&
-    //   paymasterAndDataResponse.verificationGasLimit &&
-    //   paymasterAndDataResponse.preVerificationGas
-    // ) {
-    //   userOperation.callGasLimit = paymasterAndDataResponse.callGasLimit.toString()
-    //   userOperation.verificationGasLimit = paymasterAndDataResponse.verificationGasLimit.toString()
-    //   userOperation.preVerificationGas = paymasterAndDataResponse.preVerificationGas.toString()
-    // }
+    if (
+      paymasterAndDataResponse.callGasLimit &&
+      paymasterAndDataResponse.verificationGasLimit &&
+      paymasterAndDataResponse.preVerificationGas
+    ) {
+      userOperation.callGasLimit = paymasterAndDataResponse.callGasLimit.toString()
+      userOperation.verificationGasLimit = paymasterAndDataResponse.verificationGasLimit.toString()
+      userOperation.preVerificationGas = paymasterAndDataResponse.preVerificationGas.toString()
+    }
 
     let encoded = encodeUserOps(userOperation) 
     const userOpsHash = ethers5.utils.keccak256(encoded)
@@ -69,11 +79,9 @@ async function getNonce(smartAccount: string , nonceKey: bigint) {
   try {
     const entryPointAddress = ADDRESSES[Number((await AppConfig.PROVIDER.getNetwork()).chainId) as SupportedChains].entryPoint
 
-    const entryPoint = new ethers.Contract(entryPointAddress, ENTRYPOINT_ABI, AppConfig.PROVIDER)
+    const entryPoint = new ethers5.Contract(entryPointAddress, ENTRYPOINT_ABI, AppConfig.PROVIDER)
     const nonce = await entryPoint.getNonce(smartAccount, nonceKey)
-
-    const nonceHex = ethers.toBeHex(nonce, 32)
-    return nonceHex
+    return nonce.toHexString()
 
   } catch (error) {
     console.log("USEROPS__getNonce error >>>> ", error)
@@ -142,7 +150,6 @@ async function signUserOps(signer: ethers5.Signer, userOpsHash: string) {
 
 function encodeUserOps(userOperation: IUserOperation) {
   try {
-    
     const encoded = ethers5.utils.defaultAbiCoder.encode([
       "address",
       "uint256",
@@ -178,7 +185,7 @@ function encodeUserOps(userOperation: IUserOperation) {
  export async function queryReceipt(bundler:string, userOpHash: string) : Promise<any> {
   try {
       let receipt = null
-      let timeOut = 120000 // 2 minutes timeout: Max of 5 - 10 minutes
+      let timeOut = 300000 // 5 minutes timeout: Max of 5 - 10 minutes
       const startTime = Date.now()
       while (receipt === null && Date.now() - startTime < timeOut) {
           await new Promise((resolve) => setTimeout(resolve, 3000)) // Polling interval of 3 - 5 seconds
@@ -196,6 +203,7 @@ function encodeUserOps(userOperation: IUserOperation) {
 
 export async function userOpsStatusByHash(signer: ethers5.providers.JsonRpcSigner, userOpHash: string) : Promise<TransactionResponse> {
   try {
+    const pimlicoBundler = AAProviderFactory.get(signer)
     const bundler = await pimlicoBundler.getRPC(signer)
     const receipt = await queryReceipt(bundler, userOpHash)
       if (!receipt) {

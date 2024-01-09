@@ -4,14 +4,15 @@ import {CMetadata, MintParam, SupportedPlatforms} from "../types/types"
 import { ethers } from "ethers";
 import {AppConfig} from "../config"
 import { Transaction } from "@biconomy/core-types"
-import {buildUserOperation} from "../libs/userOp"
+import {buildAndSendUserOperation, buildUserOperation} from "../libs/userOp"
 import * as ethers5 from 'ethers5';
 import { CWallet__factory } from "../types/typechain-types/factories/contracts/core/CWallet__factory"
 import { Pool__factory } from "../types/typechain-types"
 import * as zoraMint from "../libs/external/zoraMint"
-import * as biconomyBundler from "../libs/bundlers/biconomy"
-import * as pimlicoBundler from "../libs/bundlers/pimlico"
+import * as biconomyBundler from "../libs/AAProviders/biconomyProvider"
+import * as pimlicoBundler from "../libs/AAProviders/pimlicoProvider"
 import { requireSupportedChain } from "../libs/utils";
+import { AAProviderFactory } from "../libs/AAProviders/providerFactory";
 
 // Create the pool module of the sdk
 export class Pool {
@@ -46,8 +47,8 @@ export class Pool {
                 const tx = await cWalletContract.depositTo(await signer.getAddress(), {value: mintParam.amount})
                 await tx.wait()
             }
-            
-            const tx = await pimlicoBundler.send(userOperation, signer)
+            const userOpsProvider = AAProviderFactory.get(signer)
+            const tx = await userOpsProvider.send(userOperation, signer)
 
             return tx;
        } catch (error) {
@@ -74,8 +75,7 @@ export class Pool {
                     value: 0,
                 })
             }
-            const userOperation = await buildUserOperation(signer, cMetadata.wallet, cMetadata.nonceKey, "", userOpTxs)
-            const tx = await pimlicoBundler.send(userOperation, signer)
+            const tx = await buildAndSendUserOperation(signer, cMetadata.wallet, cMetadata.nonceKey, "", userOpTxs)
 
             return tx
             
@@ -103,9 +103,7 @@ export class Pool {
                     value: 0,
                 })
             }
-            const userOperation = await buildUserOperation(signer, cMetadata.wallet, cMetadata.nonceKey, "", userOpTxs)
-            const tx = await pimlicoBundler.send(userOperation, signer)
-
+            const tx = await buildAndSendUserOperation(signer, cMetadata.wallet, cMetadata.nonceKey, "", userOpTxs)
             return tx
             
         } catch (error) {
@@ -116,56 +114,56 @@ export class Pool {
 
     //getPoolReward from pool contract
     public static async getPoolReward(pool: string) {
-        const poolContract = Pool__factory.connect(pool, AppConfig.getProvider());
+        const poolContract = new ethers5.Contract(pool, Pool__factory.abi, AppConfig.PROVIDER);
         const reward = ethers5.utils.formatEther(await poolContract.poolReward());
         return reward;
     }
 
     // getTotalContributions from pool contract
     public static async getTotalContributions(pool: string) {
-        const poolContract = Pool__factory.connect(pool, AppConfig.getProvider());
+        const poolContract = new ethers5.Contract(pool, Pool__factory.abi, AppConfig.PROVIDER);
         const totalContributions = Number(await poolContract.totalContributions());
         return totalContributions;
     }
 
     // getParticipantsCount from pool contract
     public static async getParticipantsCount(pool: string) {
-        const poolContract = Pool__factory.connect(pool, AppConfig.getProvider());
+        const poolContract = new ethers5.Contract(pool, Pool__factory.abi, AppConfig.PROVIDER);
         const participantsCount = await poolContract.getParticipantsCount();
         return participantsCount;
     }
 
     // getPoolInfo from pool contract
     public static async getPoolInfo(pool: string) {
-        const poolContract = Pool__factory.connect(pool, AppConfig.getProvider());
+        const poolContract = new ethers5.Contract(pool, Pool__factory.abi, AppConfig.PROVIDER);
         const poolInfo = await poolContract.getPoolInfo();
         return {tokenContract: poolInfo[0], poolReward: poolInfo[1], rewardDistributed: poolInfo[2], totalContributions: poolInfo[3], isRewardReceived: poolInfo[4], isDistributed: poolInfo[5]};
     }
 
     // Check if pool isActive from pool contract
     public static async isActive(pool: string) {
-        const poolContract = Pool__factory.connect(pool, AppConfig.getProvider());
+        const poolContract = new ethers5.Contract(pool, Pool__factory.abi, AppConfig.PROVIDER);
         const isActive = await poolContract.isPoolActive();
         return isActive;
     }
 
     // check if pool reward isDistributed from pool contract
     public static async isRewardDistributed(pool: string) {
-        const poolContract = Pool__factory.connect(pool, AppConfig.getProvider());
+        const poolContract = new ethers5.Contract(pool, Pool__factory.abi, AppConfig.PROVIDER);
         const isRewardDistributed = await poolContract.isDistributed();
         return isRewardDistributed;
     }
 
     // check if pool reward has been received
     public static async isRewardReceived(pool: string) {
-        const poolContract = Pool__factory.connect(pool, AppConfig.getProvider());
+        const poolContract = new ethers5.Contract(pool, Pool__factory.abi, AppConfig.PROVIDER);
         const isRewardReceived = await poolContract.isRewardReceived();
         return isRewardReceived;
     }
 
     // getPoolParticipants from pool contract, and fetch the participantData for each participant
     public static async getPoolParticipants(caller: ethers5.providers.Web3Provider, pool: string) {
-        const poolContract = Pool__factory.connect(pool, AppConfig.getProvider());
+        const poolContract = new ethers5.Contract(pool, Pool__factory.abi, AppConfig.PROVIDER);
         const participants = await poolContract.getParticipants();
         const participantData = []
         for (const participant of participants) {
@@ -178,7 +176,7 @@ export class Pool {
 
     // getParticipation
     public static async getParticipation(pool: string, member: string) {
-        const poolContract = Pool__factory.connect(pool, AppConfig.getProvider());
+        const poolContract = new ethers5.Contract(pool, Pool__factory.abi, AppConfig.PROVIDER);
         const participation = await poolContract.participantData(member);
         return {participant:participation[0], contribution: participation[1], reward: participation[2], rewardAvailable: participation[3]};
     }

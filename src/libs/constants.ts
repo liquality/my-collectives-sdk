@@ -4,8 +4,13 @@ import { SupportedChains, Deployment } from "../types/types"
 // Deployed addresses
 export const ADDRESSES : { [key in SupportedChains]: Deployment } = {
   [SupportedChains.GOERLI]: {
-    collectiveFactory: '0x3a0Bdd1bC72E7fca2ea08548b2f96b49A11f5ec8',
+    collectiveFactory: '0xdA23889B4D12dE56b5C1E118Ae63F099b03a9086',
     honeyPotFactory: '0xce3795B42857bE44cF8a384c8b50246FB7CaC691',
+    entryPoint: '0x5FF137D4b0FDCD49DcA30c7CF57E578a026d2789',
+  },
+  [SupportedChains.POLYGON]: {
+    collectiveFactory: '0x9E4440EDFc8AebB30A5501F7a55EDe296BC2fb38',
+    honeyPotFactory: '0xF99E8F24BAD50CE6b0098205adcD6cD01e66AC4F',
     entryPoint: '0x5FF137D4b0FDCD49DcA30c7CF57E578a026d2789',
   },
   [SupportedChains.ARBITRUM]: {
@@ -14,8 +19,8 @@ export const ADDRESSES : { [key in SupportedChains]: Deployment } = {
     entryPoint: '0x5FF137D4b0FDCD49DcA30c7CF57E578a026d2789',
   },
   [SupportedChains.BASE]: {
-    collectiveFactory: '0x5FF137D4b0FDCD49DcA30c7CF57E578a026d2789',
-    honeyPotFactory: '0x00F58322E0c66BFFb613DbC2D38b5275A0Fc7d2f',
+    collectiveFactory: '0xc2b5189c3D5be89147780591A92a374c7d69D3D3',
+    honeyPotFactory: '0x6fF619e8856F737d58cAf03871Cb3637C6Ed3308',
     entryPoint: '0x5FF137D4b0FDCD49DcA30c7CF57E578a026d2789',
   },
   [SupportedChains.OPTIMISM]: {

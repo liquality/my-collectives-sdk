@@ -14,6 +14,13 @@ export enum SupportedChains {
   ARBITRUM = 42161,
   OPTIMISM = 10,
   GOERLI = 5,
+  POLYGON = 80001,
+}
+
+export enum AAProviders {
+  PIMLICO = "Pimlico",
+  BICONOMY = "Binonomy",
+  LOCAL = "Local",
 }
 
   export type createPoolsParam = {
@@ -23,9 +30,10 @@ export enum SupportedChains {
 
   export type Config = {
     RPC_URL: string;
-    PIMLICO_API_KEY: string;
-    BICONOMY_PAYMASTER: string;
-    BICONOMY_BUNDLER_API_KEY: string;
+    PIMLICO_API_KEY?: string;
+    BICONOMY_PAYMASTER?: string;
+    BICONOMY_BUNDLER_API_KEY?: string;
+    AA_PROVIDER: AAProviders
   }
 
   export type JoinCollectiveParam = {
@@ -99,3 +107,10 @@ export type IUserOperation = {
     paymasterAndData: BytesLike;
     signature: BytesLike;
   }
+
+export type Estimation = {
+  callGasLimit: bigint;
+  verificationGasLimit: bigint;
+  preVerificationGas: bigint;
+  paymasterAndData: string;
+}

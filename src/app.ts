@@ -17,3 +17,4 @@ export {JoinCollectiveParam} from './types/types';
 export {CMetadata} from './types/types';
 export {MintParam} from './types/types';
 export {TransactionResponse} from './types/types';
+export {AAProviders} from './types/types';
