@@ -1,5 +1,6 @@
 import { Config } from './types/types';
 import {AppConfig} from "./config"
+import { CollectiveFactory__factory } from './types/typechain-types';
 
 // Functions to export
 export { Collective } from './collectives/index';
