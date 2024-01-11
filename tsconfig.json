@@ -1,27 +1,19 @@
 {
-    "compilerOptions": {
-      "module": "ESNext",
-      "target": "ES2016",
-      "noImplicitAny": true,
-      "removeComments": true,
-      "preserveConstEnums": true,
-      "sourceMap": true,
-      "outDir": "dist",
-      "rootDir": "./src",
-      "moduleResolution": "node",
-      "esModuleInterop": true,
-      "allowSyntheticDefaultImports": true,
-      "allowJs": true,
-      "importHelpers": true,
-      "forceConsistentCasingInFileNames": true,
-      "noFallthroughCasesInSwitch": true,
-      "noUnusedLocals": false,
-      "noUnusedParameters": false,
-      "noImplicitThis": true,
-      "strictNullChecks": true,
-      "skipLibCheck": true,
-      "declaration": true
+  "extends": "./tsconfig.root.json",
+  "references": [
+    {
+      "path": "./packages/browser"
     },
-    "include": ["src/**/*", "tsconfig.json"],
-    "exclude": ["**/*.spec.ts"]
-  }
+    {
+      "path": "./packages/core"
+    },
+    {
+      "path": "./packages/server"
+    }
+  ],
+  "files": [
+    "packages/browser/src/*.ts",
+    "packages/core/src/**/*.ts",
+    "packages/server/src/*.ts"
+  ]
+}

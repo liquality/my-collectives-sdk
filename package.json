@@ -1,39 +1,29 @@
 {
-  "name": "@liquality/my-collectives-sdk",
-  "version": "2.1.2",
-  "description": "SDK to interact with the MyCollectives contracts",
-  "repository": "https://github.com/liquality/my-collectives-sdk.git",
+  "name": "@liquality/my-collectives-sdk-core",
+  "version": "1.0.0",
   "author": "Liquality Team",
   "license": "MIT",
   "private": false,
   "publishConfig": {
     "access": "public"
   },
-  "main": "./dist/app.js",
-  "types": "./dist/app.d.ts",
-  "files": [
-    "dist/**"
-  ],
-  "scripts": {
-    "clean": "rimraf ./dist",
-    "build": "yarn clean && tsc",
-    "watch": "tsc -w",
-    "lint": "TIMING=1 eslint \"**/*.ts*\"",
-    "publish": "yarn build --build --force && npm publish",
-    "link": "yarn build --build --force && npm link"
+  "devDependencies": {
+    "@types/node": "^20.4.1",
+    
+    "rimraf": "^5.0.1",
+
+    "typescript": "^5.1.6"
   },
-  "dependencies": {
-    "@biconomy/bundler": "^3.1.1",
-    "@biconomy/core-types": "^3.1.1",
-    "@biconomy/paymaster": "^3.1.1",
-    "@zoralabs/protocol-sdk": "^0.4.3",
-    "bignumber.js": "^9.1.2",
-    "crypto": "^1.0.1",
-    "dotenv": "^16.3.1",
-    "ethers": "^6.9.0",
-    "ethers5": "npm:ethers@5",
-    "rimraf": "^5.0.5",
-    "typescript": "^5.3.3",
-    "viem": "^1.20.2"
-  }
+  "scripts": {
+    "lint": "npm run lint --workspaces --if-present",
+    "link": "npm run link --workspaces --if-present",
+    "build": "npm run build --workspaces --if-present",
+    "clean": "npm run clean --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
+    "coverage": "npm run coverage --workspaces --if-present"
+  },
+  "workspaces": [
+    "packages/browser",
+    "packages/server"
+  ]
 }

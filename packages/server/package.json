@@ -1,0 +1,35 @@
+{
+  "name": "@liquality/my-collectives-sdk-server",
+  "version": "1.0.0",
+  "description": "Server SDK to interact with the MyCollectives contracts",
+  "repository": "https://github.com/liquality/my-collectives-sdk.git",
+  "author": "Liquality Team",
+  "license": "MIT",
+  "private": false,
+  "publishConfig": {
+    "access": "public"
+  },
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "npm run clean && tsc",
+    "clean": "rimraf dist *.tsbuildinfo",
+    "lint": "npm run prettier && eslint --fix",
+    "prettier": "prettier --write ./src",
+    "watch": "tsc -w",
+    "publish": "npm run build --build --force && npm publish",
+    "link": "npm run build --build --force && npm link"
+  },
+  "devDependencies": {
+    "@typescript-eslint/eslint-plugin": "^5.54.1",
+    "@typescript-eslint/parser": "^5.54.1",
+    "eslint": "^8.35.0",
+    "eslint-config-prettier": "^8.7.0",
+    "lint-staged": "^13.1.2",
+    "prettier": "2.8.4",
+    "typescript": "^5.1.6"
+  },
+  "dependencies": {
+    "ethers": "^6.9.0",
+    "ethers5": "npm:ethers@5"
+  }
+}

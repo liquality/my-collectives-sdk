@@ -1,23 +1,11 @@
-# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+node_modules/
+.env
+./**/build
+./**/dist
+*.tsbuildinfo
 
-# dependencies
-node_modules
-.pnp
-.pnp.js
-
-# testing
-coverage
-
-# misc
 .DS_Store
 *.pem
 artifacts
 solidity-files-cache.json
 dist
-
-# debug
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-.pnpm-debug.log*
-pnpm-debug.log*
