@@ -1,14 +1,10 @@
 import {HoneyPot__factory} from "../types/typechain-types/factories/contracts/core/HoneyPot__factory"
 import {HoneyPotFactory__factory} from "../types/typechain-types/factories/contracts/fatories/HoneyPotFactory__factory"
-import {ADDRESSES, OPERATOR} from "../libs/constants"
-import {CMetadata, SupportedChains, TransactionResponse} from "../types/types"
+import {ADDRESSES, CALL_GAS_LIMIT, OPERATOR} from "../libs/constants"
+import {SupportedChains, TransactionResponse} from "../types/types"
 import { ethers } from "ethers";
 import {AppConfig} from "../config"
-import { Transaction } from "@biconomy/core-types"
-import {buildAndSendUserOperation} from "../libs/userOp"
 import * as ethers5 from 'ethers5';
-import * as pimlicoBundler from "../libs/AAProviders/pimlicoProvider"
-import * as biconomyBundler from "../libs/AAProviders/biconomyProvider"
 import { requireSupportedChain } from "../libs/utils";
 
 // Create the HoneyPot module of the sdk
@@ -68,7 +64,7 @@ export class HoneyPot {
     public static async setTopContributor(privateKey: string, honeyPotAddress: string, topContributor: string): Promise<TransactionResponse> {
         try {
             // Create an ethers wallet from the private key
-            const signer = new ethers5.Wallet(privateKey);
+            const signer = new ethers5.Wallet(privateKey, AppConfig.PROVIDER);
             requireSupportedChain((await signer.provider.getNetwork()).chainId);
     
             // Get honeyPot contract
@@ -89,26 +85,22 @@ export class HoneyPot {
     }
 
     // sendReward in honeyPot contract
-    public static async sendReward(privateKey: string, cMetadata:CMetadata, honeyPots: string[]) {
+    public static async sendReward(privateKey: string,  honeyPotAddress: string) {
         try {
-            const signer = new ethers5.Wallet(privateKey);
+            // Create an ethers wallet from the private key
+            const signer = new ethers5.Wallet(privateKey, AppConfig.PROVIDER);
             requireSupportedChain((await signer.provider.getNetwork()).chainId);
-            let userOpTx:Transaction[] = []
-
-            const sendRewardCallData = this.getSendRewardCallData();
-
-            for (const honeyPot of honeyPots) {
-                // Create user operation Tx
-                userOpTx.push({
-                        to: ethers5.utils.getAddress(honeyPot),
-                        data: sendRewardCallData,
-                        value: 0,
-                })
-            }
-
-            const tx = await buildAndSendUserOperation(signer, cMetadata.wallet, cMetadata.nonceKey, "", userOpTx)
+    
+            // Get honeyPot contract
+            const honeyPot = new ethers5.Contract(honeyPotAddress, HoneyPot__factory.abi, signer)
+            const tx = await honeyPot.sendReward({gasLimit: CALL_GAS_LIMIT});
+            await tx.wait();
             
-            return tx
+            return {
+                txHash: tx.hash,
+                status: (tx.confirmations > 1)? "success" : "pending",
+                userOpHash: ""
+            }
             
         } catch (error) {
             console.log("error sendReward >>>> ", error)
@@ -131,11 +123,6 @@ export class HoneyPot {
         }
     }
 
-    // getSendRewardCallData
-    private static getSendRewardCallData() {
-        const sendRewardCallData = HoneyPot__factory.createInterface().encodeFunctionData("sendReward");
-        return sendRewardCallData
-    }
 
     private static async getHoneyPotFactory(signer : ethers5.ethers.providers.JsonRpcSigner) {
         const honeyPot = ADDRESSES[await signer.getChainId() as SupportedChains].honeyPotFactory

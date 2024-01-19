@@ -34,7 +34,7 @@ export const ADDRESSES : { [key in SupportedChains]: Deployment } = {
     entryPoint: '0x5FF137D4b0FDCD49DcA30c7CF57E578a026d2789',
   },
 }
-export const OPERATOR = "0xD40E6a05Fd759DdcAAA8D37375Db6C857DAf424e"
+export const OPERATOR = "0x229ef326FE08C8b2423B786052D7E1a1AdDaD226"
 
 // Transactions
 export const CALL_GAS_LIMIT = 3000000

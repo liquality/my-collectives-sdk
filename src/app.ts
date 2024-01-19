@@ -10,12 +10,12 @@ export {setConfig} from './config';
 export {userOpsStatusByHash} from './libs/userOp';
 
 // Types to export
-export {Config} from './types/types';
+export type {Config} from './types/types';
 export {SupportedPlatforms} from './types/types';
 export {SupportedChains} from './types/types';
-export {createPoolsParam} from './types/types';
-export {JoinCollectiveParam} from './types/types';
-export {CMetadata} from './types/types';
-export {MintParam} from './types/types';
-export {TransactionResponse} from './types/types';
+export type {createPoolsParam} from './types/types';
+export type {JoinCollectiveParam} from './types/types';
+export type {CMetadata} from './types/types';
+export type {MintParam} from './types/types';
+export type {TransactionResponse} from './types/types';
 export {AAProviders} from './types/types';
