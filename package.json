@@ -1,6 +1,6 @@
 {
   "name": "@liquality/my-collectives-sdk",
-  "version": "2.1.2",
+  "version": "2.1.16",
   "description": "SDK to interact with the MyCollectives contracts",
   "repository": "https://github.com/liquality/my-collectives-sdk.git",
   "author": "Liquality Team",
@@ -9,8 +9,8 @@
   "publishConfig": {
     "access": "public"
   },
-  "main": "./dist/app.js",
-  "types": "./dist/app.d.ts",
+  "main": "./dist/src/app.js",
+  "types": "./dist/src/app.d.ts",
   "files": [
     "dist/**"
   ],

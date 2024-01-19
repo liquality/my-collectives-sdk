@@ -9,10 +9,9 @@ import * as ethers5 from 'ethers5';
 import { CWallet__factory } from "../types/typechain-types/factories/contracts/core/CWallet__factory"
 import { Pool__factory } from "../types/typechain-types"
 import * as zoraMint from "../libs/external/zoraMint"
-import * as biconomyBundler from "../libs/AAProviders/biconomyProvider"
-import * as pimlicoBundler from "../libs/AAProviders/pimlicoProvider"
 import { requireSupportedChain } from "../libs/utils";
 import { AAProviderFactory } from "../libs/AAProviders/providerFactory";
+import {Collective} from "../collectives/index";
 
 // Create the pool module of the sdk
 export class Pool {
@@ -48,8 +47,11 @@ export class Pool {
                 await tx.wait()
             }
             const userOpsProvider = AAProviderFactory.get(signer)
-            const tx = await userOpsProvider.send(userOperation, signer)
-
+            var tx = await userOpsProvider.send(userOperation, signer)
+            if (tx.status == "failed") { 
+                //refund user deposit
+                tx = await Collective.refund(caller, cMetadata, await signer.getAddress())
+            }
             return tx;
        } catch (error) {
             console.log("POOL__mint error >>>> ", error)
@@ -58,26 +60,22 @@ export class Pool {
     }
 
     // distributeReward across pools in a collective contract
-    public static async distributeRewards(privateKey: string, cMetadata: CMetadata, pools: string[]) {
+    public static async distributeRewards(privateKey: string, poolAddress: string) {
         try {
-            const signer = new ethers5.Wallet(privateKey);
+            // Create an ethers wallet from the private key
+            const signer = new ethers5.Wallet(privateKey, AppConfig.PROVIDER);
             requireSupportedChain((await signer.provider.getNetwork()).chainId);
-
-            // get distributeReward call data for pool
-            const distributeRewardCallData = this.getPoolDistributeRewardCallData()
-            const userOpTxs : Transaction[] = []
-
-            for (const pool of pools) {
-                // Create user operation Tx
-                userOpTxs.push({
-                    to: ethers5.utils.getAddress(pool),
-                    data: distributeRewardCallData,
-                    value: 0,
-                })
+    
+            // Get honeyPot contract
+            const pool = new ethers5.Contract(poolAddress, Pool__factory.abi, signer)
+            const tx = await pool.distributeReward();
+            await tx.wait();
+            
+            return {
+                txHash: tx.hash,
+                status: (tx.confirmations > 1)? "success" : "pending",
+                userOpHash: ""
             }
-            const tx = await buildAndSendUserOperation(signer, cMetadata.wallet, cMetadata.nonceKey, "", userOpTxs)
-
-            return tx
             
         } catch (error) {
             console.log("POOL__distributeReward error >>>> ", error)
@@ -198,11 +196,6 @@ export class Pool {
     private static getRecordPoolMintCallData(mintParam: MintParam) {
         const mintCallData = new ethers5.utils.Interface(Collective__factory.abi).encodeFunctionData("recordPoolMint", [mintParam.poolAddress, mintParam.recipient, mintParam.tokenID, mintParam.quantity, mintParam.amount]);
         return mintCallData;
-    }
-
-    private static getPoolDistributeRewardCallData() {
-        const distributeRewardCallData = Pool__factory.createInterface().encodeFunctionData("distributeReward");
-        return distributeRewardCallData;
     }
 
     // getPoolWithdrawRewardCallData

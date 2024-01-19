@@ -8,9 +8,7 @@ import { Transaction } from "@biconomy/core-types"
 import {buildAndSendUserOperation} from "../libs/userOp"
 import {generateUint192NonceKey, requireSupportedChain} from "../libs/utils"
 import * as ethers5 from 'ethers5';
-import * as biconomyBundler from "../libs/AAProviders/biconomyProvider"
-import * as pimlicoBundler from "../libs/AAProviders/pimlicoProvider"
-import { AAProviderFactory } from "../libs/AAProviders/providerFactory";
+import { CWallet__factory } from "../types/typechain-types";
 
 // Create the collective module of the sdk
 export class Collective {
@@ -83,6 +81,31 @@ export class Collective {
             return {isMember}; 
         } catch (error) {
             console.log("error isMember >>>> ", error)
+            throw error;
+            
+        }
+    }
+
+    // Refund Deposit
+    public static async refund(caller: ethers5.providers.Web3Provider, cMetadata: CMetadata, recipient: string) {
+        try {
+            requireSupportedChain((await caller.getNetwork()).chainId);
+            const signer = caller.getSigner();
+            const refundCallData = await this.getRefundCallData(recipient);
+            // Create user operation Tx
+            let userOpTx:Transaction[] = [
+                {
+                    to: ethers5.utils.getAddress(cMetadata.wallet),
+                    data: refundCallData,
+                    value: 0,
+                }
+            ]
+        
+            const tx = await buildAndSendUserOperation(signer, cMetadata.wallet, cMetadata.nonceKey, "", userOpTx)
+
+            return tx; 
+        } catch (error) {
+            console.log("error refund >>>> ", error)
             throw error;
             
         }
@@ -227,15 +250,21 @@ export class Collective {
         return leaveCollectiveCallData;
     }
 
-    private static async getCFactory(runner : ethers5.ethers.providers.JsonRpcSigner) {
-        const collectiveFactory = ADDRESSES[(await runner.getChainId()) as SupportedChains].collectiveFactory;
-        const cFactory = new ethers5.Contract(collectiveFactory, CollectiveFactory__factory.abi, runner)
+    private static async getCFactory(signer : ethers5.ethers.providers.JsonRpcSigner) {
+        const collectiveFactory = ADDRESSES[(await signer.getChainId()) as SupportedChains].collectiveFactory;
+        const cFactory = new ethers5.Contract(collectiveFactory, CollectiveFactory__factory.abi, signer)
         return cFactory;
     }
 
     private static getRemoveMemberCallData() {
         const removeMemberCallData = new ethers.Interface(Collective__factory.abi).encodeFunctionData("removeMember");
         return removeMemberCallData;
+    }
+
+    //getRefundCallData
+    private static async getRefundCallData(recipient: string) {
+        const refundCallData = new ethers.Interface(CWallet__factory.abi).encodeFunctionData("refundBalance", [recipient])
+        return refundCallData;
     }
     
     private static async createColletive(signer: ethers5.providers.JsonRpcSigner, cFactory: ethers5.ethers.Contract, nonceKey: bigint, cAddress: string, cWallet: string, poolParam: createPoolsParam, salt : ethers.BigNumberish) {

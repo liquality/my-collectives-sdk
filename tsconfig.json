@@ -1,14 +1,16 @@
 {
     "compilerOptions": {
-      "module": "ESNext",
-      "target": "ES2016",
+      "module": "CommonJS",
+      "target": "ESNext",
       "noImplicitAny": true,
       "removeComments": true,
       "preserveConstEnums": true,
       "sourceMap": true,
-      "outDir": "dist",
-      "rootDir": "./src",
+      "outDir": "./dist",
+      "rootDir": ".",
+      "composite": false,
       "moduleResolution": "node",
+      "resolveJsonModule": true,
       "esModuleInterop": true,
       "allowSyntheticDefaultImports": true,
       "allowJs": true,
@@ -20,8 +22,12 @@
       "noImplicitThis": true,
       "strictNullChecks": true,
       "skipLibCheck": true,
-      "declaration": true
+      "declaration": true,
+      "inlineSources": false,
+      "declarationMap": true,
+      "isolatedModules": true,
+      "preserveWatchOutput": true,
     },
-    "include": ["src/**/*", "tsconfig.json"],
-    "exclude": ["**/*.spec.ts"]
+    "include": ["src/**/*", "package.json", "src/**/*.json", ],
+    "exclude": ["node_modules"]
   }
