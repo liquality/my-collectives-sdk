@@ -1,6 +1,6 @@
 import {HoneyPot__factory} from "../types/typechain-types/factories/contracts/core/HoneyPot__factory"
 import {HoneyPotFactory__factory} from "../types/typechain-types/factories/contracts/fatories/HoneyPotFactory__factory"
-import {ADDRESSES, OPERATOR} from "../libs/constants"
+import {ADDRESSES, CALL_GAS_LIMIT, OPERATOR} from "../libs/constants"
 import {SupportedChains, TransactionResponse} from "../types/types"
 import { ethers } from "ethers";
 import {AppConfig} from "../config"
@@ -93,7 +93,7 @@ export class HoneyPot {
     
             // Get honeyPot contract
             const honeyPot = new ethers5.Contract(honeyPotAddress, HoneyPot__factory.abi, signer)
-            const tx = await honeyPot.sendReward();
+            const tx = await honeyPot.sendReward({gasLimit: CALL_GAS_LIMIT});
             await tx.wait();
             
             return {
