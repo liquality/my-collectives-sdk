@@ -1,23 +1,24 @@
-import {Collective__factory} from "../types/typechain-types/factories/contracts/core/Collective__factory"
-import {MockTokenContract__factory} from "../types/typechain-types/factories/contracts/mock/MockTokenContract__factory"
-import {CMetadata, MintParam, SupportedPlatforms} from "../types/types"
+import { Collective__factory } from "../types/typechain-types/factories/contracts/core/Collective__factory"
+import { MockTokenContract__factory } from "../types/typechain-types/factories/contracts/mock/MockTokenContract__factory"
+import { CMetadata, MintParam, SupportedPlatforms } from "../types/types"
 import { ethers } from "ethers";
-import {AppConfig} from "../config"
+import { AppConfig } from "../config"
 import { Transaction } from "@biconomy/core-types"
-import {buildAndSendUserOperation, buildUserOperation} from "../libs/userOp"
+import { buildAndSendUserOperation, buildUserOperation } from "../libs/userOp"
 import * as ethers5 from 'ethers5';
 import { CWallet__factory } from "../types/typechain-types/factories/contracts/core/CWallet__factory"
 import { Pool__factory } from "../types/typechain-types"
 import * as zoraMint from "../libs/external/zoraMint"
 import { requireSupportedChain } from "../libs/utils";
 import { AAProviderFactory } from "../libs/AAProviders/providerFactory";
-import {Collective} from "../collectives/index";
+import { Collective } from "../collectives/index";
+import { CALL_GAS_LIMIT } from "../libs/constants";
 
 // Create the pool module of the sdk
 export class Pool {
     // implement mint function to mint on contract
     public static async mint(caller: ethers5.providers.Web3Provider, cMetadata: CMetadata, mintParam: MintParam) {
-       try {
+        try {
             requireSupportedChain((await caller.getNetwork()).chainId);
             const signer = caller.getSigner();
 
@@ -25,7 +26,7 @@ export class Pool {
             const recordPoolMintCallData = this.getRecordPoolMintCallData(mintParam);
 
             // Create user operation Tx
-            let userOpTx:Transaction[] = [
+            let userOpTx: Transaction[] = [
                 {
                     to: ethers5.utils.getAddress(mintParam.tokenContract),
                     data: tokenMintCallData,
@@ -43,20 +44,20 @@ export class Pool {
             // depositTo cwallet by signer if amount > 0
             const cWalletContract = new ethers5.Contract(cMetadata.wallet, CWallet__factory.abi, signer)
             if (mintParam.amount > 0) {
-                const tx = await cWalletContract.depositTo(await signer.getAddress(), {value: mintParam.amount})
+                const tx = await cWalletContract.depositTo(await signer.getAddress(), { value: mintParam.amount })
                 await tx.wait()
             }
             const userOpsProvider = AAProviderFactory.get(signer)
             var tx = await userOpsProvider.send(userOperation, signer)
-            if (tx.status == "failed") { 
+            if (tx.status == "failed") {
                 //refund user deposit
                 tx = await Collective.refund(caller, cMetadata, await signer.getAddress())
             }
             return tx;
-       } catch (error) {
+        } catch (error) {
             console.log("POOL__mint error >>>> ", error)
             throw error;
-       }
+        }
     }
 
     // distributeReward across pools in a collective contract
@@ -65,18 +66,19 @@ export class Pool {
             // Create an ethers wallet from the private key
             const signer = new ethers5.Wallet(privateKey, AppConfig.PROVIDER);
             requireSupportedChain((await signer.provider.getNetwork()).chainId);
-    
+
             // Get honeyPot contract
             const pool = new ethers5.Contract(poolAddress, Pool__factory.abi, signer)
-            const tx = await pool.distributeReward();
+            const tx = await pool.distributeReward()({ gasLimit: CALL_GAS_LIMIT });
+
             await tx.wait();
-            
+
             return {
                 txHash: tx.hash,
-                status: (tx.confirmations > 1)? "success" : "pending",
+                status: (tx.confirmations > 1) ? "success" : "pending",
                 userOpHash: ""
             }
-            
+
         } catch (error) {
             console.log("POOL__distributeReward error >>>> ", error)
             throw error;
@@ -91,7 +93,7 @@ export class Pool {
 
             // get withdrawReward call data for pool
             const withdrawRewardCallData = this.getPoolWithdrawRewardCallData(participant)
-            const userOpTxs : Transaction[] = []
+            const userOpTxs: Transaction[] = []
 
             for (const pool of pools) {
                 // Create user operation Tx
@@ -103,7 +105,7 @@ export class Pool {
             }
             const tx = await buildAndSendUserOperation(signer, cMetadata.wallet, cMetadata.nonceKey, "", userOpTxs)
             return tx
-            
+
         } catch (error) {
             console.log("POOL__withdrawReward error >>>> ", error)
             throw error;
@@ -135,7 +137,7 @@ export class Pool {
     public static async getPoolInfo(pool: string) {
         const poolContract = new ethers5.Contract(pool, Pool__factory.abi, AppConfig.PROVIDER);
         const poolInfo = await poolContract.getPoolInfo();
-        return {tokenContract: poolInfo[0], poolReward: poolInfo[1], rewardDistributed: poolInfo[2], totalContributions: poolInfo[3], isRewardReceived: poolInfo[4], isDistributed: poolInfo[5]};
+        return { tokenContract: poolInfo[0], poolReward: poolInfo[1], rewardDistributed: poolInfo[2], totalContributions: poolInfo[3], isRewardReceived: poolInfo[4], isDistributed: poolInfo[5] };
     }
 
     // Check if pool isActive from pool contract
@@ -166,7 +168,7 @@ export class Pool {
         const participantData = []
         for (const participant of participants) {
             const participation = await this.getParticipation(pool, participant);
-            participantData.push({participant, participation});
+            participantData.push({ participant, participation });
         }
         return participantData;
     }
@@ -176,17 +178,17 @@ export class Pool {
     public static async getParticipation(pool: string, member: string) {
         const poolContract = new ethers5.Contract(pool, Pool__factory.abi, AppConfig.PROVIDER);
         const participation = await poolContract.participantData(member);
-        return {participant:participation[0], contribution: participation[1], reward: participation[2], rewardAvailable: participation[3]};
+        return { participant: participation[0], contribution: participation[1], reward: participation[2], rewardAvailable: participation[3] };
     }
 
     // getTokenMintCallData by platform
     private static async getTokenMintCallData(caller: ethers5.providers.Web3Provider, cMetadata: CMetadata, mintParam: MintParam) {
-        switch(mintParam.platform) {
+        switch (mintParam.platform) {
             case SupportedPlatforms.ZORA:
                 return await zoraMint.callData(caller, cMetadata, mintParam);
             case SupportedPlatforms.LOCAL:
-                return MockTokenContract__factory.createInterface().encodeFunctionData("mint", 
-                [mintParam.recipient]);
+                return MockTokenContract__factory.createInterface().encodeFunctionData("mint",
+                    [mintParam.recipient]);
             default:
                 throw new Error("Platform not supported");
         }
@@ -200,7 +202,7 @@ export class Pool {
 
     // getPoolWithdrawRewardCallData
     private static getPoolWithdrawRewardCallData(participant: string) {
-        const withdrawRewardCallData = new ethers.Interface(Pool__factory.abi).encodeFunctionData("withdrawReward",[participant]);
+        const withdrawRewardCallData = new ethers.Interface(Pool__factory.abi).encodeFunctionData("withdrawReward", [participant]);
         return withdrawRewardCallData;
     }
 
