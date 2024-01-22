@@ -1,5 +1,5 @@
 import * as ethers5 from 'ethers5'
-import { ENTRYPOINT_ABI, ADDRESSES } from '../constants'
+import { ENTRYPOINT_ABI, ADDRESSES } from '../../libs/constants'
 import { IUserOperation, SupportedChains, TransactionResponse } from '../../types/types'
 import { BaseProvider } from './baseProvider'
 import {  } from 'ethers'

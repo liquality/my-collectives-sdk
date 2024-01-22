@@ -15,6 +15,7 @@ export enum SupportedChains {
   OPTIMISM = 10,
   GOERLI = 5,
   POLYGON = 80001,
+  SEPOLIA = 11155111,
 }
 
 export enum AAProviders {
@@ -109,8 +110,11 @@ export type IUserOperation = {
   }
 
 export type Estimation = {
-  callGasLimit: bigint;
-  verificationGasLimit: bigint;
-  preVerificationGas: bigint;
+  callGasLimit: string;
+  verificationGasLimit: string;
+  preVerificationGas: string;
+}
+
+export type PaymasterEstimation = Estimation & {
   paymasterAndData: string;
 }

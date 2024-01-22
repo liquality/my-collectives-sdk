@@ -33,6 +33,11 @@ export const ADDRESSES : { [key in SupportedChains]: Deployment } = {
     honeyPotFactory: '0x00F58322E0c66BFFb613DbC2D38b5275A0Fc7d2f',
     entryPoint: '0x5FF137D4b0FDCD49DcA30c7CF57E578a026d2789',
   },
+  [SupportedChains.SEPOLIA]: {
+    collectiveFactory: '0x6f8892FBeAc884Bd3674Eeeafc7A059B70A75430',
+    honeyPotFactory: '0xD40E6a05Fd759DdcAAA8D37375Db6C857DAf424e',
+    entryPoint: '0x5FF137D4b0FDCD49DcA30c7CF57E578a026d2789',
+  }
 }
 export const OPERATOR = "0x229ef326FE08C8b2423B786052D7E1a1AdDaD226"
 

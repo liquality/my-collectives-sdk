@@ -1,12 +1,12 @@
 
 import {  PaymasterMode } from "@biconomy/paymaster";
-import { IUserOperation, SupportedChains, TransactionResponse, Estimation } from '../../types/types';
-import {ADDRESSES, CALL_GAS_LIMIT} from "../constants"
+import { IUserOperation, SupportedChains, TransactionResponse, Estimation, PaymasterEstimation } from '../../types/types';
+import {ADDRESSES, CALL_GAS_LIMIT} from "../../libs/constants"
 import * as ethers5 from 'ethers5';
 import { IBundler, Bundler } from "@biconomy/bundler";
 import { AppConfig } from "../../config";
-import { rpcCall } from "../utils"; 
-import { queryReceipt } from "../userOp";
+import { rpcCall } from "../../libs/utils"; 
+import { queryReceipt } from "../../libs/userOp";
 import { BaseProvider } from "./baseProvider";
 
 
@@ -19,9 +19,9 @@ export class BiconomyProvider extends BaseProvider {
         this.signer = signer
     }
 
-    public async estimate(userOperation: IUserOperation, signer: ethers5.Signer): Promise<Estimation> {
+    public async estimate(userOperation: IUserOperation): Promise<Estimation> {
         try {
-            const chainId = await signer.getChainId()
+            const chainId = await this.signer.getChainId()
             const bundler =  this.getBundler(chainId)
     
             let estimations = await bundler.estimateUserOpGas(userOperation)
@@ -30,14 +30,14 @@ export class BiconomyProvider extends BaseProvider {
             estimations.preVerificationGas = (Number(estimations.preVerificationGas)+ Number(CALL_GAS_LIMIT)).toString()
             
     
-            return {paymasterAndData: "", verificationGasLimit: BigInt(estimations.verificationGasLimit), callGasLimit: BigInt(estimations.callGasLimit), preVerificationGas: BigInt(estimations.preVerificationGas)}
+            return {verificationGasLimit: estimations.verificationGasLimit, callGasLimit: estimations.callGasLimit, preVerificationGas: estimations.preVerificationGas}
         } catch (error) {
           console.log("BICONOMY__send error >>>> ", error)
           throw error
         }
     }
       
-    public async sponsor(userOperation: IUserOperation, signer: ethers5.Signer) {
+    public async sponsor(userOperation: IUserOperation): Promise<PaymasterEstimation> {
         try {
           // Sponsorship params
           const partialUserOperation = {
@@ -64,10 +64,17 @@ export class BiconomyProvider extends BaseProvider {
             }
           }
     
-          const estimations =rpcCall(AppConfig.BICONOMY_PAYMASTER, "pm_sponsorUserOperation", 
+          const estimationResult = await rpcCall(AppConfig.BICONOMY_PAYMASTER, "pm_sponsorUserOperation", 
             [partialUserOperation, paymasterServiceData])
-    
-          return estimations
+            
+            let estimation: PaymasterEstimation = {
+                paymasterAndData: estimationResult.paymasterAndData, 
+                verificationGasLimit: ethers5.utils.hexlify(estimationResult.verificationGasLimit), 
+                callGasLimit: ethers5.utils.hexlify(estimationResult.callGasLimit), 
+                preVerificationGas: ethers5.utils.hexlify(estimationResult.preVerificationGas)
+            }
+
+            return estimation
     
         } catch (error) {
           console.log("BICONOMY__sponsor error >>>> ", error)
@@ -75,9 +82,9 @@ export class BiconomyProvider extends BaseProvider {
         }
     }
       
-    public async send(userOperation: IUserOperation, signer: ethers5.Signer) : Promise<TransactionResponse> {
+    public async send(userOperation: IUserOperation) : Promise<TransactionResponse> {
     try {
-        const entryPoint = ADDRESSES[await signer.getChainId() as SupportedChains].entryPoint
+        const entryPoint = ADDRESSES[await this.signer.getChainId() as SupportedChains].entryPoint
         const result = await rpcCall(await this.getRPC(), "eth_sendUserOperation", [
             userOperation,
             entryPoint,

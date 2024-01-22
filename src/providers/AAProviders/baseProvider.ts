@@ -1,17 +1,15 @@
-import { Estimation, IUserOperation, TransactionResponse } from "../../types/types"
+import { Estimation, IUserOperation, PaymasterEstimation, TransactionResponse } from "../../types/types"
 import * as ethers5 from "ethers5"
 import { IAAProvider } from "./IAAProvider"
 
 
-export abstract class BaseProvider implements IAAProvider{ 
+export abstract class BaseProvider implements IAAProvider { 
 
-    public abstract estimate(userOperation: IUserOperation, signer: ethers5.Signer): Promise<Estimation>;
-    
-    public abstract sponsor(userOperation: IUserOperation, signer: ethers5.Signer): Promise<Estimation>;
+    public abstract sponsor(userOperation: IUserOperation): Promise<PaymasterEstimation>;
       
-    public abstract send(userOperation: IUserOperation, signer: ethers5.Signer) : Promise<TransactionResponse>;
+    public abstract send(userOperation: IUserOperation) : Promise<TransactionResponse>;
     
-    public abstract getFeeData(signer: ethers5.Signer): Promise<ethers5.providers.FeeData>;
+    public abstract getFeeData(): Promise<ethers5.providers.FeeData>;
     
     public static formatUserOp(userOperation: IUserOperation): IUserOperation {
         userOperation.callGasLimit = ethers5.utils.hexlify(ethers5.BigNumber.from(userOperation.callGasLimit))
@@ -22,11 +20,10 @@ export abstract class BaseProvider implements IAAProvider{
         return userOperation
     }
 
-    public getRPC(signer: ethers5.Signer): Promise<string> {
+    public getRPC(): Promise<string> {
         return new Promise((resolve, reject) => {
             resolve("getRPC not implemented on provider")
         })
     }
-
 
 }

@@ -1,5 +1,3 @@
-import { ethers } from 'ethers';
-import { BigNumber } from 'bignumber.js';
 import { ADDRESSES } from './constants';
 
 export function toBigInt(randomBytes: Uint8Array): bigint {

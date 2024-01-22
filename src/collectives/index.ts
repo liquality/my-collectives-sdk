@@ -188,31 +188,6 @@ export class Collective {
         }
     }
 
-    // create a pool
-    public static async createPools(caller: ethers5.providers.Web3Provider, cMetadata: CMetadata, poolParam: createPoolsParam) {
-        try {
-            requireSupportedChain((await caller.getNetwork()).chainId);
-            const signer = caller.getSigner();
-            const createPoolsCallData = await this.getCreatePoolsCallData(cMetadata.address, poolParam);
-            // Create user operation Tx
-            let userOpTx:Transaction[] = [
-                {
-                    to: ethers5.utils.getAddress(cMetadata.address),
-                    data: createPoolsCallData,
-                    value: 0,
-                }
-            ]
-        
-            const tx = await buildAndSendUserOperation(signer, cMetadata.wallet, cMetadata.nonceKey, "", userOpTx)
-            return tx; 
-
-        } catch (error) {
-            console.log("error createPools >>>> ", error)
-            throw error;
-            
-        }
-    }
-
     // Get pool
     public static async getPoolByHoneyPot(caller: ethers5.providers.Web3Provider, cMetadata: CMetadata, honeyPot: string) {
         try {
@@ -228,6 +203,39 @@ export class Collective {
             
         }
     }
+    
+    private static async createColletive(signer: ethers5.providers.JsonRpcSigner, cFactory: ethers5.ethers.Contract, nonceKey: bigint, cAddress: string, cWallet: string, poolParam: createPoolsParam, salt : ethers.BigNumberish) {
+        try {
+            const initiator = await signer.getAddress();
+
+            //get createCollective call data
+            const createCollectiveCallData = await this.getCreateCollectiveCallData(initiator, OPERATOR, ethers.toBigInt(salt));
+            const createPoolsCallData = new ethers.Interface(Collective__factory.abi).encodeFunctionData("createPools", [poolParam.tokenContracts, poolParam.honeyPots])
+
+            // Create user operation Tx
+            let userOpTx:Transaction[] = [
+                {
+                    to: cFactory.address,
+                    data: createCollectiveCallData,
+                    value: 0,
+                },
+                {
+                    to: ethers5.utils.getAddress(cAddress),
+                    data: createPoolsCallData,
+                    value: 0,
+                }
+            ]
+        
+            const tx = await buildAndSendUserOperation(signer, cWallet, nonceKey, "", userOpTx)
+
+            return tx;
+        } catch (error) {
+            console.log("error createCollective >>>> ", error)
+            throw error;
+            
+        }
+    
+    }
 
     // getCreatCollectiveCallData
     private static async getCreateCollectiveCallData(initiator: string, operator: string, salt: ethers.BigNumberish) {
@@ -235,11 +243,6 @@ export class Collective {
         return createCollectiveCallData;
     }
     
-    private static async getCreatePoolsCallData(cAddress: string, poolParam: createPoolsParam) {
-        const createPoolCallData = new ethers.Interface(Collective__factory.abi).encodeFunctionData("createPools", [poolParam.tokenContracts, poolParam.honeyPots])
-        return createPoolCallData;
-    }
-
     private static async getJoinCollectiveCallData(cAddress: string, joinParam: JoinCollectiveParam) {
         const JoinCollectiveCallData = Collective__factory.createInterface().encodeFunctionData("joinCollective", [joinParam.inviteSignature, joinParam.inviteCode]);
         return JoinCollectiveCallData;
@@ -265,39 +268,6 @@ export class Collective {
     private static async getRefundCallData(recipient: string) {
         const refundCallData = new ethers.Interface(CWallet__factory.abi).encodeFunctionData("refundBalance", [recipient])
         return refundCallData;
-    }
-    
-    private static async createColletive(signer: ethers5.providers.JsonRpcSigner, cFactory: ethers5.ethers.Contract, nonceKey: bigint, cAddress: string, cWallet: string, poolParam: createPoolsParam, salt : ethers.BigNumberish) {
-        try {
-            const initiator = await signer.getAddress();
-
-            //get createCollective call data
-            const createCollectiveCallData = await this.getCreateCollectiveCallData(initiator, OPERATOR, ethers.toBigInt(salt));
-            const createPoolsCallData = await this.getCreatePoolsCallData(cAddress, poolParam);
-
-            // Create user operation Tx
-            let userOpTx:Transaction[] = [
-                {
-                    to: cFactory.address,
-                    data: createCollectiveCallData,
-                    value: 0,
-                },
-                {
-                    to: ethers5.utils.getAddress(cAddress),
-                    data: createPoolsCallData,
-                    value: 0,
-                }
-            ]
-        
-            const tx = await buildAndSendUserOperation(signer, cWallet, nonceKey, "", userOpTx)
-
-            return tx;
-        } catch (error) {
-            console.log("error createCollective >>>> ", error)
-            throw error;
-            
-        }
-    
     }
 }
 

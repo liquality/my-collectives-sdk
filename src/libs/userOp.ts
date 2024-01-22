@@ -8,14 +8,14 @@ import {ADDRESSES, CALL_GAS_LIMIT, ENTRYPOINT_ABI, USER_OPERATIONS_DEFAULT_SIGNA
 import * as ethers5 from 'ethers5';
 import { AddressLike, BigNumberish } from 'ethers/lib.esm';
 import { rpcCall } from './utils';
-import { AAProviderFactory } from './AAProviders/providerFactory';
+import { AAProviderFactory } from '../providers/AAProviders/providerFactory';
 
 
 export async function buildAndSendUserOperation(signer: ethers5.Signer, smartAccount: string, nonceKey: bigint, collectiveInitCode: BytesLike, transactions: Transaction[]) : Promise<TransactionResponse> {
   try {
     const userOperation = await buildUserOperation(signer, smartAccount, nonceKey, collectiveInitCode, transactions)
     const userOpsProvider = AAProviderFactory.get(signer)
-    const receipt = await userOpsProvider.send(userOperation, signer)
+    const receipt = await userOpsProvider.send(userOperation)
     return receipt
   } catch (error) {
     console.log("USEROPS__buildAndSendUserOperation error >>>> ", error)
@@ -42,23 +42,18 @@ export async function buildUserOperation(signer: ethers5.Signer, smartAccount: s
 
     let estimationOps = {...userOperation}
     estimationOps.signature = USER_OPERATIONS_DEFAULT_SIGNATURE
-
-    // let estimations = await userOpsProvider.estimate(estimationOps, signer)
-    // userOperation.callGasLimit = estimations.callGasLimit.toString()//7000264//
-    // userOperation.preVerificationGas = estimations.preVerificationGas.toString()//800808//
-    // userOperation.verificationGasLimit = estimations.verificationGasLimit.toString() //600401 //
     
     // Get gas estimation for user oeperation
-    const paymasterAndDataResponse = await userOpsProvider.sponsor(userOperation, signer)
+    const paymasterAndDataResponse = await userOpsProvider.sponsor(userOperation)
     userOperation.paymasterAndData = paymasterAndDataResponse.paymasterAndData
     if (
       paymasterAndDataResponse.callGasLimit &&
       paymasterAndDataResponse.verificationGasLimit &&
       paymasterAndDataResponse.preVerificationGas
     ) {
-      userOperation.callGasLimit = paymasterAndDataResponse.callGasLimit.toString()
-      userOperation.verificationGasLimit = paymasterAndDataResponse.verificationGasLimit.toString()
-      userOperation.preVerificationGas = paymasterAndDataResponse.preVerificationGas.toString()
+      userOperation.callGasLimit = paymasterAndDataResponse.callGasLimit
+      userOperation.verificationGasLimit = paymasterAndDataResponse.verificationGasLimit
+      userOperation.preVerificationGas = paymasterAndDataResponse.preVerificationGas
     }
 
     let encoded = encodeUserOps(userOperation) 
@@ -204,7 +199,7 @@ function encodeUserOps(userOperation: IUserOperation) {
 export async function userOpsStatusByHash(signer: ethers5.providers.JsonRpcSigner, userOpHash: string) : Promise<TransactionResponse> {
   try {
     const pimlicoBundler = AAProviderFactory.get(signer)
-    const bundler = await pimlicoBundler.getRPC(signer)
+    const bundler = await pimlicoBundler.getRPC()
     const receipt = await queryReceipt(bundler, userOpHash)
       if (!receipt) {
         return {

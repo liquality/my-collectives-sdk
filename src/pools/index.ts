@@ -1,6 +1,6 @@
 import {Collective__factory} from "../types/typechain-types/factories/contracts/core/Collective__factory"
 import {MockTokenContract__factory} from "../types/typechain-types/factories/contracts/mock/MockTokenContract__factory"
-import {CMetadata, MintParam, SupportedPlatforms} from "../types/types"
+import {CMetadata, MintParam, SupportedPlatforms, createPoolsParam} from "../types/types"
 import { ethers } from "ethers";
 import {AppConfig} from "../config"
 import { Transaction } from "@biconomy/core-types"
@@ -10,11 +10,37 @@ import { CWallet__factory } from "../types/typechain-types/factories/contracts/c
 import { Pool__factory } from "../types/typechain-types"
 import * as zoraMint from "../libs/external/zoraMint"
 import { requireSupportedChain } from "../libs/utils";
-import { AAProviderFactory } from "../libs/AAProviders/providerFactory";
+import { AAProviderFactory } from "../providers/AAProviders/providerFactory";
 import {Collective} from "../collectives/index";
 
 // Create the pool module of the sdk
 export class Pool {
+
+    // create a pool
+    public static async createPools(caller: ethers5.providers.Web3Provider, cMetadata: CMetadata, poolParam: createPoolsParam) {
+        try {
+            requireSupportedChain((await caller.getNetwork()).chainId);
+            const signer = caller.getSigner();
+            const createPoolsCallData = new ethers.Interface(Collective__factory.abi).encodeFunctionData("createPools", [poolParam.tokenContracts, poolParam.honeyPots])
+            // Create user operation Tx
+            let userOpTx:Transaction[] = [
+                {
+                    to: ethers5.utils.getAddress(cMetadata.address),
+                    data: createPoolsCallData,
+                    value: 0,
+                }
+            ]
+        
+            const tx = await buildAndSendUserOperation(signer, cMetadata.wallet, cMetadata.nonceKey, "", userOpTx)
+            return tx; 
+
+        } catch (error) {
+            console.log("error createPools >>>> ", error)
+            throw error;
+            
+        }
+    }
+
     // implement mint function to mint on contract
     public static async mint(caller: ethers5.providers.Web3Provider, cMetadata: CMetadata, mintParam: MintParam) {
        try {
@@ -47,7 +73,7 @@ export class Pool {
                 await tx.wait()
             }
             const userOpsProvider = AAProviderFactory.get(signer)
-            var tx = await userOpsProvider.send(userOperation, signer)
+            var tx = await userOpsProvider.send(userOperation)
             if (tx.status == "failed") { 
                 //refund user deposit
                 tx = await Collective.refund(caller, cMetadata, await signer.getAddress())

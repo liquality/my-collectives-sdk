@@ -2,10 +2,10 @@
 import { ethers } from 'ethers';
 import * as ethers5 from 'ethers5';
 import { AppConfig } from '../../config';
-import { IUserOperation, SupportedChains, TransactionResponse, Estimation } from '../../types/types';
-import {CALL_GAS_LIMIT, ADDRESSES} from "../constants"
-import {rpcCall} from "../utils"
-import { queryReceipt } from '../userOp';
+import { IUserOperation, SupportedChains, TransactionResponse, Estimation, PaymasterEstimation } from '../../types/types';
+import {CALL_GAS_LIMIT, ADDRESSES} from "../../libs/constants"
+import {rpcCall} from "../../libs/utils"
+import { queryReceipt } from '../../libs/userOp';
 import { BaseProvider } from './baseProvider';
 
 export class PimlicoProvider extends BaseProvider  {
@@ -16,31 +16,43 @@ export class PimlicoProvider extends BaseProvider  {
         this.signer = signer
     }
 
-    public async estimate(userOperation: IUserOperation, signer: ethers5.Signer) {
+    public async estimate(userOperation: IUserOperation) : Promise<Estimation> {
         try {
-            const entryPoint = ADDRESSES[await signer.getChainId() as SupportedChains].entryPoint
+            
+            const entryPoint = ADDRESSES[await this.signer.getChainId() as SupportedChains].entryPoint
             userOperation = this.formatUserOp(userOperation)
-            const estimations = await rpcCall(await this.getRPC(), "eth_estimateUserOperationGas", [userOperation, entryPoint])
-            estimations.callGasLimit = ethers5.utils.hexlify(ethers5.BigNumber.from((Number(estimations.callGasLimit) + Number(CALL_GAS_LIMIT)).toString()))
-            estimations.verificationGasLimit = ethers5.utils.hexlify(ethers5.BigNumber.from((Number(estimations.verificationGasLimit)+ Number(CALL_GAS_LIMIT)).toString()))
-            estimations.preVerificationGas = ethers5.utils.hexlify(ethers5.BigNumber.from((Number(estimations.preVerificationGas)+ Number(CALL_GAS_LIMIT)).toString()))
+            const estimationResult = await rpcCall(await this.getRPC(), "eth_estimateUserOperationGas", [userOperation, entryPoint])
 
-            return estimations
+            let estimation: Estimation = {
+                callGasLimit: ethers5.utils.hexlify(ethers5.BigNumber.from((Number(estimationResult.callGasLimit) + Number(CALL_GAS_LIMIT)).toString())),
+                verificationGasLimit: ethers5.utils.hexlify(ethers5.BigNumber.from((Number(estimationResult.verificationGasLimit)+ Number(CALL_GAS_LIMIT)).toString())),
+                preVerificationGas: ethers5.utils.hexlify(ethers5.BigNumber.from((Number(estimationResult.preVerificationGas)+ Number(CALL_GAS_LIMIT)).toString()))
+            }
+
+            return estimation
         } catch (error) {
-        console.log("PIMLICO__estimate error >>>> ", error)
-        throw error
+            console.log("PIMLICO__estimate error >>>> ", error)
+            throw error
         }
     }
 
-    public async sponsor(userOperation: IUserOperation, signer: ethers5.Signer): Promise<Estimation> {
+    public async sponsor(userOperation: IUserOperation): Promise<PaymasterEstimation> {
         try {
             userOperation = this.formatUserOp(userOperation)
-            const entryPoint = ADDRESSES[await signer.getChainId() as SupportedChains].entryPoint
-            const estimations = await rpcCall(await this.getRPC(), "pm_sponsorUserOperation", [userOperation, entryPoint])
-            return {paymasterAndData: estimations.paymasterAndData, verificationGasLimit: estimations.verificationGasLimit, callGasLimit: estimations.callGasLimit, preVerificationGas: estimations.preVerificationGas}
+            const entryPoint = ADDRESSES[await this.signer.getChainId() as SupportedChains].entryPoint
+            const estimationResult = await rpcCall(await this.getRPC(), "pm_sponsorUserOperation", [userOperation, entryPoint]) 
+            
+            let estimation: PaymasterEstimation = {
+                paymasterAndData: estimationResult.paymasterAndData, 
+                verificationGasLimit: ethers5.utils.hexlify(userOperation.verificationGasLimit), 
+                callGasLimit: ethers5.utils.hexlify(userOperation.callGasLimit), 
+                preVerificationGas: ethers5.utils.hexlify(userOperation.preVerificationGas)
+            }
+
+            return estimation
         } catch (error) {
             console.log("PIMLICO__sponsor error >>>> ", error)
-            return {paymasterAndData: "", verificationGasLimit: BigInt(0), callGasLimit: BigInt(0), preVerificationGas: BigInt(0)}
+            throw error
         }
     }
     
@@ -48,7 +60,7 @@ export class PimlicoProvider extends BaseProvider  {
     try {
         const pimlicoEndpoint = await this.getRPC()
         const entryPoint = ADDRESSES[await this.signer.getChainId() as SupportedChains].entryPoint
-        const userOpHash = await rpcCall(pimlicoEndpoint, "eth_sendUserOperation", [userOperation, entryPoint])
+        const userOpHash: string = await rpcCall(pimlicoEndpoint, "eth_sendUserOperation", [userOperation, entryPoint])
         if (!userOpHash) {
             throw new Error("Transaction failed to send")
         }
